@@ -253,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(loop);
 
     // --- 6. End Game (Leaderboard) ---
+    // --- 6. End Game (Leaderboard) ---
     net.onGameOver = (data) => {
         state.gameActive = false;
         mainModal.classList.add('hidden'); // Ensure hidden
@@ -263,18 +264,38 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('result-title').style.color =
             (data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)");
 
-        // Populate Table
-        leaderboardBody.innerHTML = '';
-        data.leaderboard.forEach((player, index) => {
-            const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid #333';
-            row.innerHTML = `
-                <td style="padding: 5px;">#${index + 1}</td>
-                <td style="padding: 5px; color: ${player.team === 'A' ? 'var(--neon-cyan)' : (player.team === 'B' ? 'var(--neon-magenta)' : '#fff')}">${player.username}</td>
-                <td style="padding: 5px; text-align: right;">${player.score}</td>
-            `;
-            leaderboardBody.appendChild(row);
+        // Find MVP (Highest Score)
+        let mvpId = null;
+        let maxScore = -1;
+        data.leaderboard.forEach(p => {
+            if (p.score > maxScore) {
+                maxScore = p.score;
+                mvpId = p.id;
+            }
         });
+
+        // Split Teams
+        const teamA = data.leaderboard.filter(p => p.team === 'A').sort((a, b) => b.score - a.score);
+        const teamB = data.leaderboard.filter(p => p.team === 'B').sort((a, b) => b.score - a.score);
+
+        const renderList = (list) => {
+            return list.map((p, i) => {
+                const isMVP = p.id === mvpId;
+                const bgStyle = isMVP ? 'background: rgba(255, 215, 0, 0.2); border: 1px solid gold;' : 'border-bottom: 1px solid #333;';
+                const nameStyle = isMVP ? 'color: gold; font-weight: bold;' : 'color: #fff;';
+                const icon = isMVP ? '👑 ' : '';
+
+                return `
+                 <div style="display: flex; justify-content: space-between; padding: 5px; ${bgStyle} margin-bottom: 5px; align-items: center;">
+                    <span style="${nameStyle}">${i + 1}. ${icon}${p.username}</span>
+                    <span style="color: #ccc;">${p.score}</span>
+                 </div>
+                 `;
+            }).join('');
+        };
+
+        document.getElementById('stats-cyan').innerHTML = renderList(teamA);
+        document.getElementById('stats-magenta').innerHTML = renderList(teamB);
     };
 
 });
