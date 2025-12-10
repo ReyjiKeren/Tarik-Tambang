@@ -1,13 +1,14 @@
 class GameRenderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) console.error("Canvas element not found!");
         this.ctx = this.canvas.getContext('2d');
+
+        // Force initial resize
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
-        // Visual params
-        this.particles = [];
-        this.ropeOffset = 0;
+        console.log("Renderer Initialized", this.cw, this.ch);
     }
 
     resize() {
@@ -18,111 +19,79 @@ class GameRenderer {
     }
 
     draw(state) {
+        if (!this.ctx) return;
+
         // Clear
         this.ctx.clearRect(0, 0, this.cw, this.ch);
 
-        // Core Position (0 to 100). 50 is center.
-        // Map 0-100 to 10%-90% of screen width to keep it visible
-        const coreX = (this.cw * 0.1) + (state.corePosition / 100) * (this.cw * 0.8);
-        const coreY = this.ch / 2;
+        // Safe Defaults
+        const pos = (typeof state.corePosition === 'number') ? state.corePosition : 50;
+        const tension = (typeof state.ropeTension === 'number') ? state.ropeTension : 0.5;
+        const power = (typeof state.corePower === 'number') ? state.corePower : 0;
 
-        // Draw Rope
-        this.drawRope(coreX, coreY, state.ropeTension);
+        // Calculate Center
+        // Map 0-100 to 10%-90% width
+        const cx = (this.cw * 0.1) + (pos / 100) * (this.cw * 0.8);
+        const cy = this.ch / 2;
 
-        // Draw Core
-        this.drawCore(coreX, coreY, state.corePower);
-
-        // Draw Particles
-        this.updateAndDrawParticles(coreX, coreY, state.corePower);
-    }
-
-    drawRope(cx, cy, tension) {
-        this.ctx.save();
-        this.ctx.strokeStyle = '#00f3ff';
-        this.ctx.lineWidth = 4;
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = '#00f3ff';
-        this.ctx.lineCap = 'round';
-
-        // Left side (P1)
+        // Draw Guide Line (Visible regardless of state)
+        this.ctx.globalAlpha = 0.2;
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 2;
         this.ctx.beginPath();
         this.ctx.moveTo(0, cy);
-        // Bezier wiggle based on tension (low tension = more sag/wiggle)
-        // High tension = straight line
-        const wiggle = (1 - tension) * 20 * Math.sin(Date.now() / 200);
-        this.ctx.quadraticCurveTo(cx / 2, cy + wiggle, cx, cy);
+        this.ctx.lineTo(this.cw, cy);
         this.ctx.stroke();
+        this.ctx.globalAlpha = 1.0;
 
-        // Right side (P2)
-        this.ctx.strokeStyle = '#ff00ff';
-        this.ctx.shadowColor = '#ff00ff';
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.cw, cy);
-        this.ctx.quadraticCurveTo((this.cw + cx) / 2, cy - wiggle, cx, cy);
-        this.ctx.stroke();
+        // Draw Rope parts
+        this.drawRopeSegment(0, cy, cx, cy, '#00f3ff', tension); // Left
+        this.drawRopeSegment(cx, cy, this.cw, cy, '#ff00ff', tension); // Right
 
-        this.ctx.restore();
+        // Draw Core
+        this.drawSimpleCore(cx, cy, power);
     }
 
-    drawCore(x, y, power) {
-        this.ctx.save();
+    drawRopeSegment(x1, y1, x2, y2, color, tension) {
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 5;
+        this.ctx.shadowBlur = 10;
+        this.ctx.shadowColor = color;
+        this.ctx.lineCap = 'round';
 
-        // Glow
-        const p = (typeof power === 'number' && !isNaN(power)) ? power : 0;
-        const pulse = Math.sin(Date.now() / 300) * 5;
-        const radius = Math.max(5, 20 + (p * 0.5) + pulse);
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
 
-        const grad = this.ctx.createRadialGradient(x, y, 5, x, y, radius);
-        grad.addColorStop(0, '#fff');
-        grad.addColorStop(0.5, '#00f3ff');
-        grad.addColorStop(1, 'rgba(0, 243, 255, 0)');
+        // Simple Bezier
+        const midX = (x1 + x2) / 2;
+        // Wiggle depends on tension. Low tension = more wiggle.
+        const wiggle = (1 - tension) * 30 * Math.sin(Date.now() / 200);
 
-        this.ctx.fillStyle = grad;
+        this.ctx.quadraticCurveTo(midX, y1 + wiggle, x2, y2);
+        this.ctx.stroke();
+
+        // Reset Shadow for next draw
+        this.ctx.shadowBlur = 0;
+    }
+
+    drawSimpleCore(x, y, power) {
+        // Outer Glow
+        const pulse = Math.sin(Date.now() / 200) * 5;
+        const radius = Math.max(15, 20 + (power * 0.2) + pulse);
+
+        this.ctx.fillStyle = '#fff';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#00f3ff';
+
         this.ctx.beginPath();
         this.ctx.arc(x, y, radius, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // Inner Core
-        this.ctx.fillStyle = '#fff';
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 10, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        this.ctx.restore();
+        // Reset
+        this.ctx.shadowBlur = 0;
     }
 
-    spawnParticles(x, y, count) {
-        for (let i = 0; i < count; i++) {
-            this.particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 1.0
-            });
-        }
-    }
-
-    updateAndDrawParticles(cx, cy, power) {
-        // Auto spawn some if power is high
-        if (power > 50 && Math.random() > 0.8) {
-            this.spawnParticles(cx, cy, 2);
-        }
-
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.05;
-
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-            } else {
-                this.ctx.globalAlpha = p.life;
-                this.ctx.fillRect(p.x, p.y, 2, 2);
-            }
-        }
-        this.ctx.globalAlpha = 1;
-    }
+    // Stub for compatibility
+    shake(intensity) { }
+    spawnParticles(x, y, c) { }
 }
