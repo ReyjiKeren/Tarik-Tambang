@@ -151,14 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
         listB.innerHTML = data.teamB.map(p => `<li>${p.username}</li>`).join('');
 
         // Find myself
-        const myId = net.socket ? net.socket.id : null;
-        const amIUnassigned = data.unassigned.some(p => p.username === state.username); // loose check or check socket ID?
-        // Better: server uses socket ID to identify players. 
-        // We can check if we are in unassigned list.
-        // But for now, just show buttons ALWAYS if we are in lobby? 
-        // Ideally only show if unassigned.
-        // Let's just Always show them for flexibility to switch teams?
-        // User asked: "User yang belum join dimasukkan ke tim Belum Terpilih".
+        const amICyan = data.teamA.some(p => p.username === state.username);
+        const amIMagenta = data.teamB.some(p => p.username === state.username);
+
+        if (amICyan) state.myTeam = 'A';
+        else if (amIMagenta) state.myTeam = 'B';
+        else state.myTeam = 'unassigned';
 
         controlsUnassigned.classList.remove('hidden'); // Allow switching anytime
 
@@ -210,8 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleTap(e) {
         if (!state.gameActive) return;
-        e.preventDefault();
 
+        if (state.myTeam === 'unassigned') {
+            showToast("JOIN A TEAM TO PLAY!", "error");
+            return;
+        }
+
+        e.preventDefault();
         state.pendingClicks++;
 
         // Visual Feedback

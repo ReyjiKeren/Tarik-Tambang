@@ -42,6 +42,9 @@ class GameRenderer {
         const coreX = (this.cw * 0.1) + (state.corePosition / 100) * (this.cw * 0.8);
         const coreY = this.ch / 2;
 
+        // Draw Finish Lines (at 0% and 100% of the game range)
+        this.drawFinishLines();
+
         // Draw Rope
         this.drawRope(coreX, coreY, state.ropeTension);
 
@@ -52,6 +55,44 @@ class GameRenderer {
         this.updateAndDrawParticles(coreX, coreY, state.corePower);
 
         this.ctx.restore(); // Close Shake
+    }
+
+    drawFinishLines() {
+        const yTop = this.ch * 0.2;
+        const yBot = this.ch * 0.8;
+
+        // Left Goal (Cyan Win)
+        const xLeft = this.cw * 0.1; // 0 position
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(0, 243, 255, 0.3)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(xLeft, yTop);
+        this.ctx.lineTo(xLeft, yBot);
+        this.ctx.stroke();
+
+        // Text
+        this.ctx.fillStyle = 'rgba(0, 243, 255, 0.5)';
+        this.ctx.font = '20px Orbitron';
+        this.ctx.fillText("CYAN GOAL", xLeft - 60, this.ch / 2);
+        this.ctx.restore();
+
+        // Right Goal (Magenta Win)
+        const xRight = this.cw * 0.9; // 100 position
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(xRight, yTop);
+        this.ctx.lineTo(xRight, yBot);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = 'rgba(255, 0, 255, 0.5)';
+        this.ctx.font = '20px Orbitron';
+        this.ctx.fillText("MAGENTA GOAL", xRight + 10, this.ch / 2);
+        this.ctx.restore();
     }
 
     drawRope(cx, cy, tension) {
