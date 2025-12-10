@@ -186,6 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     net.onError = (msg) => showToast(msg, 'error');
 
+    net.onGameUpdate = (data) => {
+        state.corePosition = data.corePosition;
+        if (data.activePower > 0) {
+            // Visual flair for activity
+            if (Math.random() > 0.7) renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 2);
+        }
+    };
+
     // --- 3. Game Start ---
     net.onGameStarted = () => {
         mainModal.classList.add('hidden');
