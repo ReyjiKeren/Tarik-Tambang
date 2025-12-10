@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
         // Apply Logic
         // Team A (Cyan) pulls LEFT (-), Team B (Magenta) pulls RIGHT (+)
         const direction = (player.team === 'A') ? -1 : 1;
-        const impact = (clicks * 0.1);
+        const impact = (clicks * 0.2);
 
         room.corePosition += (impact * direction);
 
