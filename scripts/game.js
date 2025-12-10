@@ -238,13 +238,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. Game Loop (Render) ---
     let lastTime = 0;
     function loop(timestamp) {
-        const dt = timestamp - lastTime;
-        lastTime = timestamp;
-        renderer.draw({
-            corePosition: state.corePosition,
-            ropeTension: state.gameActive ? 0.8 : 0.5,
-            corePower: state.pendingClicks * 10 // Visual feedback for clicks
-        });
+        try {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            if (renderer && renderer.ctx) {
+                renderer.draw({
+                    corePosition: (state.corePosition !== undefined) ? state.corePosition : 50,
+                    ropeTension: state.gameActive ? 0.8 : 0.5,
+                    corePower: (state.pendingClicks || 0) * 10
+                });
+            }
+        } catch (err) {
+            console.error("Render Loop Error:", err);
+        }
         requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);

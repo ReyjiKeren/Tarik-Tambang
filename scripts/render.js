@@ -68,8 +68,9 @@ class GameRenderer {
         this.ctx.save();
 
         // Glow
+        const p = (typeof power === 'number' && !isNaN(power)) ? power : 0;
         const pulse = Math.sin(Date.now() / 300) * 5;
-        const radius = 20 + (power * 0.5) + pulse;
+        const radius = Math.max(5, 20 + (p * 0.5) + pulse);
 
         const grad = this.ctx.createRadialGradient(x, y, 5, x, y, radius);
         grad.addColorStop(0, '#fff');
