@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 //   status: "LOBBY" | "PLAYING" | "ENDED",
 //   hostId: "socketId",
 //   players: {
-//      "socketId": { username: "Player1", team: "A", score: 0 }
+//      "socketId": { username: "Player1", team: "unassigned" | "A" | "B", score: 0 }
 //   },
 //   corePosition: 50,
 //   winner: null
@@ -44,21 +44,22 @@ io.on('connection', (socket) => {
             winner: null
         };
 
-        // Host automatically joins but needs to pick team later? 
-        // For simplicity, Host is just a manager first, or auto-assigned?
-        // Let's say Host joins as a player too.
+        // Host joins as Unassigned first
         rooms[roomId].players[socket.id] = {
             username: username || "Host",
-            team: null, // Will select in lobby
+            team: 'unassigned',
             score: 0
         };
 
         socket.join(roomId);
         socket.emit('room_created', { roomId, isHost: true });
+
+        // Immediate Update
+        io.to(roomId).emit('lobby_update', getLobbyState(rooms[roomId]));
         console.log(`Room ${roomId} created by ${username}`);
     });
 
-    // 2. Join Room (check existence)
+    // 2. Check Room
     socket.on('check_room', (roomId) => {
         if (rooms[roomId]) {
             socket.emit('room_found', roomId);
@@ -68,6 +69,7 @@ io.on('connection', (socket) => {
     });
 
     // 3. Join Lobby (Enter Name & Pick Team)
+    // Now call join_lobby with team=null/unassigned initially
     socket.on('join_lobby', ({ roomId, username, team }) => {
         const room = rooms[roomId];
         if (!room) return;
@@ -77,17 +79,21 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Check Team Cap (10)
-        const teamCount = Object.values(room.players).filter(p => p.team === team).length;
-        if (teamCount >= 10) {
-            socket.emit('error_msg', `Team ${team} is full!`);
-            return;
+        const targetTeam = team || 'unassigned';
+
+        // Check Team Cap (10) - Only if joining a specific team
+        if (targetTeam !== 'unassigned') {
+            const teamCount = Object.values(room.players).filter(p => p.team === targetTeam).length;
+            if (teamCount >= 10) {
+                socket.emit('error_msg', `Team ${targetTeam} is full!`);
+                return;
+            }
         }
 
-        // Register Player
+        // Register/Update Player
         room.players[socket.id] = {
             username: username || `Soldier-${socket.id.substr(0, 4)}`,
-            team: team,
+            team: targetTeam,
             score: 0
         };
 
@@ -102,6 +108,16 @@ io.on('connection', (socket) => {
         const room = rooms[roomId];
         if (!room) return;
         if (socket.id !== room.hostId) return;
+
+        // Check availability
+        const players = Object.values(room.players);
+        const countA = players.filter(p => p.team === 'A').length;
+        const countB = players.filter(p => p.team === 'B').length;
+
+        if (countA === 0 || countB === 0) {
+            socket.emit('error_msg', "Need players in both teams!");
+            return;
+        }
 
         room.status = 'PLAYING';
         room.corePosition = 50;
@@ -119,14 +135,15 @@ io.on('connection', (socket) => {
         if (!room || room.status !== 'PLAYING') return;
 
         const player = room.players[socket.id];
-        if (!player) return;
+        // Only assigned players can play
+        if (!player || player.team === 'unassigned') return;
 
         player.score += clicks;
 
         // Apply Logic
         // Team A (Cyan) pulls LEFT (-), Team B (Magenta) pulls RIGHT (+)
         const direction = (player.team === 'A') ? -1 : 1;
-        const impact = (clicks * 0.1); // 1 click = 0.1 movement unit
+        const impact = (clicks * 0.1);
 
         room.corePosition += (impact * direction);
 
@@ -134,7 +151,7 @@ io.on('connection', (socket) => {
         if (room.corePosition < 0) room.corePosition = 0;
         if (room.corePosition > 100) room.corePosition = 100;
 
-        // Broadcast State (Optimized: maybe not every single click, but Socket.io is fast enough for now)
+        // Broadcast State
         io.to(roomId).emit('game_update', {
             corePosition: room.corePosition,
             activePower: clicks * 10
@@ -156,8 +173,6 @@ io.on('connection', (socket) => {
                 if (room.status === 'LOBBY') {
                     io.to(rId).emit('lobby_update', getLobbyState(room));
                 }
-
-                // If host leaves, maybe end room? ignoring for now.
                 break;
             }
         }
@@ -165,9 +180,9 @@ io.on('connection', (socket) => {
 });
 
 function getLobbyState(room) {
-    // Return lists of players for UI
     const players = Object.values(room.players);
     return {
+        unassigned: players.filter(p => p.team === 'unassigned'),
         teamA: players.filter(p => p.team === 'A'),
         teamB: players.filter(p => p.team === 'B')
     };

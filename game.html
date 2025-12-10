@@ -135,7 +135,7 @@
     </div>
 
     <!-- Main Modal (Handles Login, Connection, Lobby) -->
-    <div id="main-modal" class="modal">
+    <div id="main-modal" class="modal" style="width: 95%; max-width: 600px;">
         <h2 id="modal-title" class="neon-text">IDENTITY VERIFIED</h2>
 
         <!-- Step 0: Username Login -->
@@ -159,42 +159,58 @@
             <button id="btn-connect-room" class="btn-main hidden">Connect</button>
         </div>
 
-        <!-- Step 2: Team Selection -->
-        <div id="step-team" class="hidden" style="margin-top: 20px;">
-            <p style="color: #fff; margin-bottom: 10px;">CHOOSE ALLEGIANCE</p>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button id="btn-join-a" class="btn-main"
-                    style="border-color: var(--neon-cyan); color: var(--neon-cyan);">CYAN</button>
-                <button id="btn-join-b" class="btn-main"
-                    style="border-color: var(--neon-magenta); color: var(--neon-magenta);">MAGENTA</button>
-            </div>
-        </div>
-
-        <!-- Step 3: Lobby (Waiting Room) -->
-        <div id="step-lobby" class="hidden" style="margin-top: 20px; text-align: left;">
+        <!-- Step 2: Lobby (3 Sections) -->
+        <div id="step-lobby" class="hidden" style="margin-top: 10px; text-align: left;">
             <p style="text-align: center; color: #fff;">LOBBY STATUS: <span id="lobby-status"
                     style="color: var(--neon-cyan)">WAITING</span></p>
 
-            <div style="display: flex; gap: 20px; justify-content: space-between; margin-top: 10px;">
-                <div style="width: 45%;">
-                    <h4 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan)">TEAM CYAN</h4>
+            <!-- Unassigned Pool (Center Top) -->
+            <div id="lobby-unassigned"
+                style="text-align: center; margin-bottom: 20px; border: 1px dashed #444; padding: 10px;">
+                <h4 style="color: #aaa; margin-bottom: 5px;">UNASSIGNED AGENTS</h4>
+                <div id="list-unassigned" style="color: #fff; font-size: 0.9rem; min-height: 30px;">Checking...</div>
+
+                <!-- Buttons to Switch (Only visible if I am unassigned) -->
+                <div id="controls-unassigned" class="hidden"
+                    style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
+                    <button id="btn-join-a" class="btn-main"
+                        style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 5px 10px; font-size: 0.8rem;">JOIN
+                        CYAN</button>
+                    <button id="btn-join-b" class="btn-main"
+                        style="border-color: var(--neon-magenta); color: var(--neon-magenta); padding: 5px 10px; font-size: 0.8rem;">JOIN
+                        MAGENTA</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; justify-content: space-between;">
+                <!-- Team A -->
+                <div style="width: 48%; background: rgba(0,255,255,0.05); padding: 10px;">
+                    <h4 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); text-align: center;">
+                        TEAM CYAN</h4>
                     <ul id="list-team-a"
-                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
+                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 150px; overflow-y: auto; text-align: center;">
                     </ul>
                 </div>
-                <div style="width: 45%;">
-                    <h4 style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta)">TEAM MAGENTA
-                    </h4>
+
+                <!-- Team B -->
+                <div style="width: 48%; background: rgba(255,0,255,0.05); padding: 10px;">
+                    <h4
+                        style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta); text-align: center;">
+                        TEAM MAGENTA</h4>
                     <ul id="list-team-b"
-                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
+                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 150px; overflow-y: auto; text-align: center;">
                     </ul>
                 </div>
             </div>
 
-            <button id="btn-start-game" class="btn-main hidden"
-                style="width: 100%; margin-top: 20px; background: rgba(0,255,255,0.2);">START MISSION</button>
-            <p id="msg-waiting-host" class="hidden"
-                style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">Waiting for Host...</p>
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="btn-start-game" class="btn-main hidden"
+                    style="width: 100%; background: rgba(0,255,255,0.2);">START MISSION</button>
+                <p id="msg-waiting-host" class="hidden" style="font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    Waiting for Host...</p>
+                <h3 id="lobby-room-id"
+                    style="margin-top: 15px; color: #fff; letter-spacing: 5px; font-family: monospace;">ROOM: ????</h3>
+            </div>
         </div>
 
         <br>

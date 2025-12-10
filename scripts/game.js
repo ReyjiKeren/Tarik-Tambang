@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Steps
     const stepLogin = document.getElementById('step-login');
     const stepConnect = document.getElementById('step-connect');
-    const stepTeam = document.getElementById('step-team');
     const stepLobby = document.getElementById('step-lobby');
 
     // Inputs/Buttons
@@ -32,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const codeInput = document.getElementById('code-input');
     const displayCode = document.getElementById('code-display');
 
+    const listUnassigned = document.getElementById('list-unassigned');
+    const controlsUnassigned = document.getElementById('controls-unassigned');
     const btnJoinA = document.getElementById('btn-join-a');
     const btnJoinB = document.getElementById('btn-join-b');
 
@@ -40,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lobbyStatus = document.getElementById('lobby-status');
     const btnStart = document.getElementById('btn-start-game');
     const msgWait = document.getElementById('msg-waiting-host');
+    const lobbyRoomId = document.getElementById('lobby-room-id');
 
     // Leaderboard
     const leaderboardBody = document.getElementById('leaderboard-body');
@@ -66,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchStep(stepId) {
-        [stepLogin, stepConnect, stepTeam, stepLobby].forEach(el => el.classList.add('hidden'));
+        [stepLogin, stepConnect, stepLobby].forEach(el => el.classList.add('hidden'));
         document.getElementById(stepId).classList.remove('hidden');
     }
 
@@ -90,8 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('modal-title').innerText = "HQ COMMAND";
             document.getElementById('modal-desc').innerText = "Creating Room...";
             displayCode.classList.remove('hidden');
-            net.init(); // Connect
-            // Init triggering on connect usually works, but we wait for connection event in network
+            net.init();
         } else {
             document.getElementById('modal-title').innerText = "JOIN SQUAD";
             document.getElementById('modal-desc').innerText = "Enter ID:";
@@ -103,82 +104,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 2. Network Events Wiring ---
 
-    net.onRoomCreated = (id) => {
-        // Only host sees this
-        net.createRoom(state.username); // Actually create room request
-        // Wait, logic in rtc.js calls createRoom on init? No, we call manually now.
-    };
-
-    // Override net.init to allow manual triggered actions?
-    // Let's rely on internal socket flow. 
-    // We bind callbacks first.
-
-    net.onGameUpdate = (data) => {
-        state.corePosition = data.corePosition;
-        if (data.activePower > 0) renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 2);
-    };
-
-    // Re-wire logic for precise flow
-    net.socket = null; // Reset for safety if multiple inits
-
-    // Correct Flow:
-    // 1. User clicks LOGIN -> calls net.init()
-    // 2. socket connects -> 
-    //    If Host: net.createRoom(username)
-    //    If Joiner: Wait for ID input
-
+    // Modify init to trigger creation/connection
     const originalInit = net.init.bind(net);
     net.init = () => {
         originalInit();
-        if (net.socket) {
-            net.socket.on('connect', () => {
-                if (state.role === 'host') {
-                    net.createRoom(state.username);
-                }
-            });
-        }
+        net.socket.on('connect', () => {
+            if (state.role === 'host') {
+                net.createRoom(state.username);
+            }
+        });
     };
 
     net.onRoomCreated = (id) => {
-        // Host Created
         displayCode.innerText = `ID: ${id}`;
-        // Host immediately goes to Team Select? Or waits?
-        // Let's go to Team Select so Host is a player too.
-        switchStep('step-team');
-        document.getElementById('modal-title').innerText = `ID: ${id}`;
+        // Host goes directly to Lobby (as Unassigned)
+        net.roomId = id; // Ensure roomId is set in net
+        // Wait for lobby_update to switch UI
+        // Actually createRoom on server triggers lobby_update immediately
     };
 
     btnConnectRoom.onclick = () => {
         const id = codeInput.value;
         if (id.length === 4) {
-            net.checkRoom(id);
+            // Check room first? Or just join lobby directly?
+            // Let's join lobby directly with team=null
+            net.joinLobby(id, state.username, null); // null = unassigned
         } else {
             showToast("Invalid ID");
         }
     };
 
-    net.onRoomFound = (id) => {
-        net.roomId = id;
-        switchStep('step-team');
-        document.getElementById('modal-title').innerText = `ID: ${id}`;
-    };
-
-    // Team Select
-    btnJoinA.onclick = () => net.joinLobby(net.roomId, state.username, 'A');
-    btnJoinB.onclick = () => net.joinLobby(net.roomId, state.username, 'B');
-
-    // Lobby Update
     net.onLobbyUpdate = (data) => {
         switchStep('step-lobby');
         document.getElementById('modal-title').innerText = "LOBBY";
 
+        if (net.roomId) {
+            lobbyRoomId.innerText = `ROOM: ${net.roomId}`;
+        }
+
         // Render Lists
+        listUnassigned.innerHTML = data.unassigned.length ?
+            data.unassigned.map(p => `<div>${p.username}</div>`).join('') :
+            '<span style="color: #666">- Empty -</span>';
+
         listA.innerHTML = data.teamA.map(p => `<li>${p.username}</li>`).join('');
         listB.innerHTML = data.teamB.map(p => `<li>${p.username}</li>`).join('');
 
+        // Find myself
+        const myId = net.socket ? net.socket.id : null;
+        const amIUnassigned = data.unassigned.some(p => p.username === state.username); // loose check or check socket ID?
+        // Better: server uses socket ID to identify players. 
+        // We can check if we are in unassigned list.
+        // But for now, just show buttons ALWAYS if we are in lobby? 
+        // Ideally only show if unassigned.
+        // Let's just Always show them for flexibility to switch teams?
+        // User asked: "User yang belum join dimasukkan ke tim Belum Terpilih".
+
+        controlsUnassigned.classList.remove('hidden'); // Allow switching anytime
+
         // Provide Status
-        const total = data.teamA.length + data.teamB.length;
-        lobbyStatus.innerText = `${total} AGENTS READY`;
+        const total = data.unassigned.length + data.teamA.length + data.teamB.length;
+        lobbyStatus.innerText = `${total} AGENTS CONNECTED`;
 
         if (state.role === 'host') {
             btnStart.classList.remove('hidden');
@@ -189,7 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Team Switching
+    btnJoinA.onclick = () => net.joinLobby(net.roomId, state.username, 'A');
+    btnJoinB.onclick = () => net.joinLobby(net.roomId, state.username, 'B');
+
     btnStart.onclick = () => {
+        // Validation handled by server
         net.startGame();
     };
 
@@ -205,15 +196,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 4. Game Input (Click Spam) ---
     const control = document.getElementById('control-layer');
 
-    // Debounced Sender
     setInterval(() => {
         if (state.pendingClicks > 0 && state.gameActive) {
             net.sendClickSpam(state.pendingClicks);
             state.pendingClicks = 0;
         }
-
         // Visual Decay
-        chargeBar.style.width = '0%'; // Reset bar periodically for visual tapping effect
+        if (chargeBar.style.width !== '0%') {
+            // chargeBar.style.width = '0%'; // keep it flashing 
+        }
     }, clickBatchInterval);
 
 
@@ -224,11 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.pendingClicks++;
 
         // Visual Feedback
-        // Flash bar
         chargeBar.style.width = '100%';
         setTimeout(() => chargeBar.style.width = '0%', 50);
 
-        // Shake
         renderer.shake(2);
     }
 
@@ -238,20 +227,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. Game Loop (Render) ---
     let lastTime = 0;
     function loop(timestamp) {
-        try {
-            const dt = timestamp - lastTime;
-            lastTime = timestamp;
-
-            if (renderer && renderer.ctx) {
-                renderer.draw({
-                    corePosition: (state.corePosition !== undefined) ? state.corePosition : 50,
-                    ropeTension: state.gameActive ? 0.8 : 0.5,
-                    corePower: (state.pendingClicks || 0) * 10
-                });
-            }
-        } catch (err) {
-            console.error("Render Loop Error:", err);
-        }
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+        renderer.draw({
+            corePosition: state.corePosition,
+            ropeTension: state.gameActive ? 0.8 : 0.5,
+            corePower: state.pendingClicks * 10 // rough visual feedback
+        });
         requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
@@ -274,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.style.borderBottom = '1px solid #333';
             row.innerHTML = `
                 <td style="padding: 5px;">#${index + 1}</td>
-                <td style="padding: 5px; color: ${player.team === 'A' ? 'var(--neon-cyan)' : 'var(--neon-magenta)'}">${player.username}</td>
+                <td style="padding: 5px; color: ${player.team === 'A' ? 'var(--neon-cyan)' : (player.team === 'B' ? 'var(--neon-magenta)' : '#fff')}">${player.username}</td>
                 <td style="padding: 5px; text-align: right;">${player.score}</td>
             `;
             leaderboardBody.appendChild(row);
