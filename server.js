@@ -6,21 +6,22 @@ const { Server } = require("socket.io");
 const io = new Server(server);
 const path = require('path');
 
-// Serve static files
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Game Rooms State
-// { 
-//   roomId: { 
-//      teamA: [socketId, ...], 
-//      teamB: [socketId, ...], 
-//      corePosition: 50,
-//      winner: null 
-//   } 
+// Room State Structure:
+// {
+//   id: "1234",
+//   status: "LOBBY" | "PLAYING" | "ENDED",
+//   hostId: "socketId",
+//   players: {
+//      "socketId": { username: "Player1", team: "A", score: 0 }
+//   },
+//   corePosition: 50,
+//   winner: null
 // }
 const rooms = {};
 
@@ -31,60 +32,101 @@ function generateRoomId() {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Create Room
-    socket.on('create_room', () => {
+    // 1. Create Room (Host)
+    socket.on('create_room', ({ username }) => {
         const roomId = generateRoomId();
         rooms[roomId] = {
-            teamA: [],
-            teamB: [],
+            id: roomId,
+            status: 'LOBBY',
+            hostId: socket.id,
+            players: {},
             corePosition: 50,
             winner: null
         };
-        // Host doesn't automatically join a team, they must choose in UI
-        socket.emit('room_created', roomId);
-        console.log(`Room ${roomId} created`);
-    });
 
-    // Join Team
-    socket.on('join_team', ({ roomId, team }) => {
-        const room = rooms[roomId];
+        // Host automatically joins but needs to pick team later? 
+        // For simplicity, Host is just a manager first, or auto-assigned?
+        // Let's say Host joins as a player too.
+        rooms[roomId].players[socket.id] = {
+            username: username || "Host",
+            team: null, // Will select in lobby
+            score: 0
+        };
 
-        if (!room) {
-            socket.emit('error_msg', "Room not found.");
-            return;
-        }
-
-        // Check if full (10 per team)
-        const targetArray = team === 'A' ? room.teamA : room.teamB;
-        if (targetArray.length >= 10) {
-            socket.emit('error_msg', `Team ${team} is Full (Max 10)!`);
-            return;
-        }
-
-        // Join
         socket.join(roomId);
-        targetArray.push(socket.id);
-
-        // Notify success
-        socket.emit('joined_success', { roomId, team });
-
-        // Broadcast Update to everyone in room
-        io.to(roomId).emit('player_update', {
-            countA: room.teamA.length,
-            countB: room.teamB.length
-        });
-
-        console.log(`${socket.id} joined Room ${roomId} Team ${team}`);
+        socket.emit('room_created', { roomId, isHost: true });
+        console.log(`Room ${roomId} created by ${username}`);
     });
 
-    // Game Logic: Pull
-    socket.on('pull', ({ roomId, force, team }) => {
-        const room = rooms[roomId];
-        if (!room || room.winner) return;
+    // 2. Join Room (check existence)
+    socket.on('check_room', (roomId) => {
+        if (rooms[roomId]) {
+            socket.emit('room_found', roomId);
+        } else {
+            socket.emit('error_msg', "Room not found.");
+        }
+    });
 
-        // Direction: Team A pulls NEGATIVE (Left/0), Team B pulls POSITIVE (Right/100)
-        const direction = (team === 'A') ? -1 : 1;
-        const impact = (force / 100) * 0.5; // Balancer multiplier
+    // 3. Join Lobby (Enter Name & Pick Team)
+    socket.on('join_lobby', ({ roomId, username, team }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        if (room.status !== 'LOBBY') {
+            socket.emit('error_msg', "Game already started!");
+            return;
+        }
+
+        // Check Team Cap (10)
+        const teamCount = Object.values(room.players).filter(p => p.team === team).length;
+        if (teamCount >= 10) {
+            socket.emit('error_msg', `Team ${team} is full!`);
+            return;
+        }
+
+        // Register Player
+        room.players[socket.id] = {
+            username: username || `Soldier-${socket.id.substr(0, 4)}`,
+            team: team,
+            score: 0
+        };
+
+        socket.join(roomId);
+
+        // Broadcast Lobby State to everyone
+        io.to(roomId).emit('lobby_update', getLobbyState(room));
+    });
+
+    // 4. Start Game (Host Only)
+    socket.on('start_game', (roomId) => {
+        const room = rooms[roomId];
+        if (!room) return;
+        if (socket.id !== room.hostId) return;
+
+        room.status = 'PLAYING';
+        room.corePosition = 50;
+        // Reset scores
+        Object.values(room.players).forEach(p => p.score = 0);
+
+        io.to(roomId).emit('game_started');
+        console.log(`Game started in Room ${roomId}`);
+    });
+
+    // 5. Game Action (Click Spam)
+    // Client sends: { roomId, clicks: 5 } (batched)
+    socket.on('click_action', ({ roomId, clicks }) => {
+        const room = rooms[roomId];
+        if (!room || room.status !== 'PLAYING') return;
+
+        const player = room.players[socket.id];
+        if (!player) return;
+
+        player.score += clicks;
+
+        // Apply Logic
+        // Team A (Cyan) pulls LEFT (-), Team B (Magenta) pulls RIGHT (+)
+        const direction = (player.team === 'A') ? -1 : 1;
+        const impact = (clicks * 0.1); // 1 click = 0.1 movement unit
 
         room.corePosition += (impact * direction);
 
@@ -92,38 +134,57 @@ io.on('connection', (socket) => {
         if (room.corePosition < 0) room.corePosition = 0;
         if (room.corePosition > 100) room.corePosition = 100;
 
-        // Broadcast State
+        // Broadcast State (Optimized: maybe not every single click, but Socket.io is fast enough for now)
         io.to(roomId).emit('game_update', {
             corePosition: room.corePosition,
-            activePower: force // For visual shake
+            activePower: clicks * 10
         });
 
-        // Win Check
-        if (room.corePosition <= 0) {
-            room.winner = 'A';
-            io.to(roomId).emit('game_over', { winner: 'A' });
-        } else if (room.corePosition >= 100) {
-            room.winner = 'B';
-            io.to(roomId).emit('game_over', { winner: 'B' });
+        // Win Condition
+        if (room.corePosition <= 0 || room.corePosition >= 100) {
+            endGame(room);
         }
     });
 
     socket.on('disconnect', () => {
-        // Find room and remove player
-        for (const id in rooms) {
-            const r = rooms[id];
-            if (r.teamA.includes(socket.id)) {
-                r.teamA = r.teamA.filter(pid => pid !== socket.id);
-                io.to(id).emit('player_update', { countA: r.teamA.length, countB: r.teamB.length });
-            } else if (r.teamB.includes(socket.id)) {
-                r.teamB = r.teamB.filter(pid => pid !== socket.id);
-                io.to(id).emit('player_update', { countA: r.teamA.length, countB: r.teamB.length });
+        // Find room
+        for (const rId in rooms) {
+            const room = rooms[rId];
+            if (room.players[socket.id]) {
+                delete room.players[socket.id];
+
+                if (room.status === 'LOBBY') {
+                    io.to(rId).emit('lobby_update', getLobbyState(room));
+                }
+
+                // If host leaves, maybe end room? ignoring for now.
+                break;
             }
-            // Logic to delete empty room could be added here
         }
-        console.log('User disconnected:', socket.id);
     });
 });
+
+function getLobbyState(room) {
+    // Return lists of players for UI
+    const players = Object.values(room.players);
+    return {
+        teamA: players.filter(p => p.team === 'A'),
+        teamB: players.filter(p => p.team === 'B')
+    };
+}
+
+function endGame(room) {
+    room.status = 'ENDED';
+    const winner = room.corePosition <= 0 ? 'A' : 'B';
+
+    // Generate Leaderboard
+    const sortedPlayers = Object.values(room.players).sort((a, b) => b.score - a.score);
+
+    io.to(room.id).emit('game_over', {
+        winner: winner,
+        leaderboard: sortedPlayers
+    });
+}
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

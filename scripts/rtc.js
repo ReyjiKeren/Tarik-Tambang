@@ -2,14 +2,16 @@ class NetworkManager {
     constructor() {
         this.socket = null;
         this.roomId = null;
+        this.username = null;
         this.myTeam = null;
 
         // Callbacks
         this.onRoomCreated = null;
-        this.onJoinSuccess = null;
-        this.onPlayerUpdate = null; // { countA, countB }
+        this.onRoomFound = null;
+        this.onLobbyUpdate = null; // { teamA: [], teamB: [] }
+        this.onGameStarted = null;
         this.onGameUpdate = null;   // { corePosition, activePower }
-        this.onGameOver = null;     // { winner }
+        this.onGameOver = null;     // { winner, leaderboard }
         this.onError = null;        // msg
     }
 
@@ -23,29 +25,29 @@ class NetworkManager {
         }
 
         // --- Socket Events ---
-
         this.socket.on('connect', () => {
             console.log("Connected to server");
         });
 
-        this.socket.on('room_created', (id) => {
-            this.roomId = id;
-            if (this.onRoomCreated) this.onRoomCreated(id);
+        this.socket.on('room_created', (data) => {
+            this.roomId = data.roomId;
+            if (this.onRoomCreated) this.onRoomCreated(data.roomId);
         });
 
-        this.socket.on('joined_success', (data) => {
-            this.roomId = data.roomId;
-            this.myTeam = data.team;
-            console.log("Joined Team:", this.myTeam);
-            if (this.onJoinSuccess) this.onJoinSuccess(data);
+        this.socket.on('room_found', (id) => {
+            if (this.onRoomFound) this.onRoomFound(id);
+        });
+
+        this.socket.on('lobby_update', (data) => {
+            if (this.onLobbyUpdate) this.onLobbyUpdate(data);
+        });
+
+        this.socket.on('game_started', () => {
+            if (this.onGameStarted) this.onGameStarted();
         });
 
         this.socket.on('error_msg', (msg) => {
             if (this.onError) this.onError(msg);
-        });
-
-        this.socket.on('player_update', (data) => {
-            if (this.onPlayerUpdate) this.onPlayerUpdate(data);
         });
 
         this.socket.on('game_update', (data) => {
@@ -58,21 +60,30 @@ class NetworkManager {
     }
 
     // Actions
-    createRoom() {
-        this.socket.emit('create_room');
+    createRoom(username) {
+        this.username = username;
+        this.socket.emit('create_room', { username });
     }
 
-    joinTeam(roomId, team) {
-        this.socket.emit('join_team', { roomId, team });
+    checkRoom(roomId) {
+        this.socket.emit('check_room', roomId);
     }
 
-    sendPullForce(force) {
-        if (!this.roomId || !this.myTeam) return;
-        this.socket.emit('pull', {
-            roomId: this.roomId,
-            force: force,
-            team: this.myTeam
-        });
+    joinLobby(roomId, username, team) {
+        this.roomId = roomId;
+        this.username = username;
+        this.myTeam = team;
+        this.socket.emit('join_lobby', { roomId, username, team });
+    }
+
+    startGame() {
+        if (!this.roomId) return;
+        this.socket.emit('start_game', this.roomId);
+    }
+
+    sendClickSpam(clicks) {
+        if (!this.roomId) return;
+        this.socket.emit('click_action', { roomId: this.roomId, clicks });
     }
 }
 

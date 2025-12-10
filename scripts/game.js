@@ -1,37 +1,63 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Setup
+    // Setup
     const renderer = new GameRenderer('game-canvas');
-    const net = window.Network; // from rtc.js (now pure socket)
+    const net = window.Network;
+    const clickBatchInterval = 200; // Send clicks every 200ms
 
-    // DOM Elements
-    const p1ScoreEl = document.getElementById('p1-score'); // Now Team A
-    const p2ScoreEl = document.getElementById('p2-score'); // Now Team B
-    const chargeBar = document.getElementById('charge-bar');
-    const connectionModal = document.getElementById('connection-modal');
+    // --- State ---
+    const state = {
+        username: "",
+        role: null, // 'host' or 'joiner'
+        gameActive: false,
+        corePosition: 50,
+        pendingClicks: 0
+    };
 
-    // Step 1 UI
-    const step1 = document.getElementById('step-1');
-    const displayCode = document.getElementById('code-display');
-    const inputCode = document.getElementById('code-input');
-    const btnNext = document.getElementById('btn-next-step');
+    // --- DOM Elements ---
+    // Modals
+    const mainModal = document.getElementById('main-modal');
+    const toastContainer = document.getElementById('toast-container');
+    const resultModal = document.getElementById('result-modal');
 
-    // Step 2 UI (Teams)
+    // Steps
+    const stepLogin = document.getElementById('step-login');
+    const stepConnect = document.getElementById('step-connect');
     const stepTeam = document.getElementById('step-team');
+    const stepLobby = document.getElementById('step-lobby');
+
+    // Inputs/Buttons
+    const nameInput = document.getElementById('username-input');
+    const btnLogin = document.getElementById('btn-login');
+    const btnConnectRoom = document.getElementById('btn-connect-room');
+    const codeInput = document.getElementById('code-input');
+    const displayCode = document.getElementById('code-display');
+
     const btnJoinA = document.getElementById('btn-join-a');
     const btnJoinB = document.getElementById('btn-join-b');
-    const countA = document.getElementById('count-a');
-    const countB = document.getElementById('count-b');
 
-    const resultModal = document.getElementById('result-modal');
-    const toastContainer = document.getElementById('toast-container');
+    const listA = document.getElementById('list-team-a');
+    const listB = document.getElementById('list-team-b');
+    const lobbyStatus = document.getElementById('lobby-status');
+    const btnStart = document.getElementById('btn-start-game');
+    const msgWait = document.getElementById('msg-waiting-host');
 
-    // Toasts
+    // Leaderboard
+    const leaderboardBody = document.getElementById('leaderboard-body');
+
+    // HUD
+    const p1ScoreEl = document.getElementById('p1-score');
+    const p2ScoreEl = document.getElementById('p2-score');
+    const chargeBar = document.getElementById('charge-bar');
+
+
+    // --- Helper Functions ---
     function showToast(msg, type = 'info') {
         const toast = document.createElement('div');
-        toast.className = 'toast-msg ' + type; // define CSS later if needed
+        toast.className = 'toast-msg ' + type;
         toast.style.background = 'rgba(0,0,0,0.8)';
         toast.style.border = '1px solid var(--neon-cyan)';
         toast.style.padding = '10px 20px';
+        toast.style.marginBottom = '10px';
         toast.style.color = '#fff';
         toast.style.borderRadius = '5px';
         toast.innerText = msg;
@@ -39,166 +65,210 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toast.remove(), 3000);
     }
 
-    // State
-    const state = {
-        corePosition: 50,
-        corePower: 0,
-        ropeTension: 0.5,
-        myPower: 0,
-        isCharging: false,
-        gameActive: false
-    };
-
-    net.init();
-
-    // Mode Detection
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode') || 'host';
-
-    if (mode === 'host') {
-        document.getElementById('modal-title').innerText = "HQ COMMAND";
-        document.getElementById('modal-desc').innerText = "Initializing Room...";
-        displayCode.classList.remove('hidden');
-        net.createRoom();
-        // Note: Host will enter Team Selection after creation
-    } else {
-        document.getElementById('modal-title').innerText = "JOIN SQUAD";
-        document.getElementById('modal-desc').innerText = "Enter Operation ID:";
-        inputCode.classList.remove('hidden');
-        btnNext.classList.remove('hidden');
+    function switchStep(stepId) {
+        [stepLogin, stepConnect, stepTeam, stepLobby].forEach(el => el.classList.add('hidden'));
+        document.getElementById(stepId).classList.remove('hidden');
     }
 
-    // --- Network Events Wiring ---
+    // --- 1. Login Logic ---
+    btnLogin.onclick = () => {
+        const name = nameInput.value.trim();
+        if (!name) {
+            showToast("Enter Codename!");
+            return;
+        }
+        state.username = name;
+
+        // Detect Role
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'host';
+        state.role = mode;
+
+        switchStep('step-connect');
+
+        if (mode === 'host') {
+            document.getElementById('modal-title').innerText = "HQ COMMAND";
+            document.getElementById('modal-desc').innerText = "Creating Room...";
+            displayCode.classList.remove('hidden');
+            net.init(); // Connect
+            // Init triggering on connect usually works, but we wait for connection event in network
+        } else {
+            document.getElementById('modal-title').innerText = "JOIN SQUAD";
+            document.getElementById('modal-desc').innerText = "Enter ID:";
+            codeInput.classList.remove('hidden');
+            btnConnectRoom.classList.remove('hidden');
+            net.init();
+        }
+    };
+
+    // --- 2. Network Events Wiring ---
 
     net.onRoomCreated = (id) => {
-        displayCode.innerText = `ID: ${id}`;
-        document.getElementById('modal-desc').innerText = "Share ID & Select Team:";
-        stepTeam.classList.remove('hidden'); // Show team selector immediately for host
+        // Only host sees this
+        net.createRoom(state.username); // Actually create room request
+        // Wait, logic in rtc.js calls createRoom on init? No, we call manually now.
     };
 
-    net.onError = (msg) => {
-        showToast(msg, 'error');
-    };
-
-    net.onPlayerUpdate = (data) => {
-        countA.innerText = `(${data.countA}/10)`;
-        countB.innerText = `(${data.countB}/10)`;
-    };
-
-    net.onJoinSuccess = (data) => {
-        // Hide Modal, Start Game
-        connectionModal.classList.add('hidden');
-        state.gameActive = true;
-        showToast(`Joined Team ${data.team === 'A' ? 'CYAN' : 'MAGENTA'}!`);
-
-        // Update HUD labels
-        p1ScoreEl.innerText = "TEAM CYAN";
-        p2ScoreEl.innerText = "TEAM MAGENTA";
-    };
+    // Override net.init to allow manual triggered actions?
+    // Let's rely on internal socket flow. 
+    // We bind callbacks first.
 
     net.onGameUpdate = (data) => {
         state.corePosition = data.corePosition;
-        // Shake effect based on power
-        if (data.activePower > 50) {
-            renderer.shake(5);
-        }
+        if (data.activePower > 0) renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 2);
     };
 
-    net.onGameOver = (data) => {
-        state.gameActive = false;
-        const myTeam = net.myTeam;
-        const winner = data.winner; // 'A' or 'B'
+    // Re-wire logic for precise flow
+    net.socket = null; // Reset for safety if multiple inits
 
-        const isVictory = (myTeam === winner);
+    // Correct Flow:
+    // 1. User clicks LOGIN -> calls net.init()
+    // 2. socket connects -> 
+    //    If Host: net.createRoom(username)
+    //    If Joiner: Wait for ID input
 
-        document.getElementById('result-title').innerText = isVictory ? "MENANG" : "KALAH";
-        document.getElementById('result-title').style.color = isVictory ? "var(--neon-cyan)" : "var(--neon-magenta)";
-
-        resultModal.classList.remove('hidden');
+    const originalInit = net.init.bind(net);
+    net.init = () => {
+        originalInit();
+        net.socket.on('connect', () => {
+            if (state.role === 'host') {
+                net.createRoom(state.username);
+            }
+        });
     };
 
-    // --- UI Interactions ---
+    net.onRoomCreated = (id) => {
+        // Host Created
+        displayCode.innerText = `ID: ${id}`;
+        // Host immediately goes to Team Select? Or waits?
+        // Let's go to Team Select so Host is a player too.
+        switchStep('step-team');
+        document.getElementById('modal-title').innerText = `ID: ${id}`;
+    };
 
-    btnNext.onclick = () => {
-        const id = inputCode.value;
+    btnConnectRoom.onclick = () => {
+        const id = codeInput.value;
         if (id.length === 4) {
-            // We don't join immediately, just "configure" to see teams? 
-            // Simplified: User enters ID, then we show Team Selector. 
-            // We need to ask server "does this room exist?" before showing selector?
-            // For simplicity in this iteration:
-            // Just assume room exists or handle error later.
-            // We use 'join_team' directly. So we store ID and show selector.
-            net.roomId = id;
-            step1.classList.add('hidden');
-            stepTeam.classList.remove('hidden');
-            document.getElementById('modal-title').innerText = `ROOM ${id}`;
-            document.getElementById('modal-desc').innerText = "Choose your allegiance:";
+            net.checkRoom(id);
         } else {
-            showToast("Invalid ID length");
+            showToast("Invalid ID");
         }
     };
 
-    btnJoinA.onclick = () => {
-        const id = net.roomId || displayCode.innerText.replace("ID: ", "");
-        net.joinTeam(id, 'A');
+    net.onRoomFound = (id) => {
+        net.roomId = id;
+        switchStep('step-team');
+        document.getElementById('modal-title').innerText = `ID: ${id}`;
     };
 
-    btnJoinB.onclick = () => {
-        const id = net.roomId || displayCode.innerText.replace("ID: ", "");
-        net.joinTeam(id, 'B');
+    // Team Select
+    btnJoinA.onclick = () => net.joinLobby(net.roomId, state.username, 'A');
+    btnJoinB.onclick = () => net.joinLobby(net.roomId, state.username, 'B');
+
+    // Lobby Update
+    net.onLobbyUpdate = (data) => {
+        switchStep('step-lobby');
+        document.getElementById('modal-title').innerText = "LOBBY";
+
+        // Render Lists
+        listA.innerHTML = data.teamA.map(p => `<li>${p.username}</li>`).join('');
+        listB.innerHTML = data.teamB.map(p => `<li>${p.username}</li>`).join('');
+
+        // Provide Status
+        const total = data.teamA.length + data.teamB.length;
+        lobbyStatus.innerText = `${total} AGENTS READY`;
+
+        if (state.role === 'host') {
+            btnStart.classList.remove('hidden');
+            msgWait.classList.add('hidden');
+        } else {
+            btnStart.classList.add('hidden');
+            msgWait.classList.remove('hidden');
+        }
     };
 
+    btnStart.onclick = () => {
+        net.startGame();
+    };
 
-    // --- Game Loop (Visuals) ---
+    net.onError = (msg) => showToast(msg, 'error');
 
+    // --- 3. Game Start ---
+    net.onGameStarted = () => {
+        mainModal.classList.add('hidden');
+        state.gameActive = true;
+        showToast("MISSION START! TAP FAST!", "success");
+    };
+
+    // --- 4. Game Input (Click Spam) ---
+    const control = document.getElementById('control-layer');
+
+    // Debounced Sender
+    setInterval(() => {
+        if (state.pendingClicks > 0 && state.gameActive) {
+            net.sendClickSpam(state.pendingClicks);
+            state.pendingClicks = 0;
+        }
+
+        // Visual Decay
+        chargeBar.style.width = '0%'; // Reset bar periodically for visual tapping effect
+    }, clickBatchInterval);
+
+
+    function handleTap(e) {
+        if (!state.gameActive) return;
+        e.preventDefault();
+
+        state.pendingClicks++;
+
+        // Visual Feedback
+        // Flash bar
+        chargeBar.style.width = '100%';
+        setTimeout(() => chargeBar.style.width = '0%', 50);
+
+        // Shake
+        renderer.shake(2);
+    }
+
+    control.addEventListener('mousedown', handleTap);
+    control.addEventListener('touchstart', handleTap);
+
+    // --- 5. Game Loop (Render) ---
     let lastTime = 0;
     function loop(timestamp) {
-        if (!lastTime) lastTime = timestamp;
         const dt = timestamp - lastTime;
         lastTime = timestamp;
-
-        if (state.gameActive) {
-            updateLogic(dt);
-        }
-        renderer.draw(state);
+        renderer.draw({
+            corePosition: state.corePosition,
+            ropeTension: state.gameActive ? 0.8 : 0.5
+        });
         requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
 
-    function updateLogic(dt) {
-        if (state.isCharging) {
-            state.myPower = Math.min(state.myPower + 0.5, 100);
-        }
-        state.corePower *= 0.95;
-        chargeBar.style.width = `${state.myPower}%`;
-    }
+    // --- 6. End Game (Leaderboard) ---
+    net.onGameOver = (data) => {
+        state.gameActive = false;
+        mainModal.classList.add('hidden'); // Ensure hidden
+        resultModal.classList.remove('hidden');
 
-    // --- Inputs ---
-    const control = document.getElementById('control-layer');
+        document.getElementById('result-title').innerText =
+            (data.winner === 'A' ? "CYAN WINS" : "MAGENTA WINS");
+        document.getElementById('result-title').style.color =
+            (data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)");
 
-    const startAction = (e) => {
-        if (!state.gameActive) return;
-        e.preventDefault();
-        state.isCharging = true;
-        state.ropeTension = 0.8;
+        // Populate Table
+        leaderboardBody.innerHTML = '';
+        data.leaderboard.forEach((player, index) => {
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid #333';
+            row.innerHTML = `
+                <td style="padding: 5px;">#${index + 1}</td>
+                <td style="padding: 5px; color: ${player.team === 'A' ? 'var(--neon-cyan)' : 'var(--neon-magenta)'}">${player.username}</td>
+                <td style="padding: 5px; text-align: right;">${player.score}</td>
+            `;
+            leaderboardBody.appendChild(row);
+        });
     };
 
-    const endAction = (e) => {
-        if (!state.gameActive) return;
-        e.preventDefault();
-        state.isCharging = false;
-        state.ropeTension = 0.5;
-
-        const force = state.myPower;
-        if (force > 0) {
-            net.sendPullForce(force); // Server handles logic
-            state.myPower = 0;
-            renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 5);
-        }
-    };
-
-    control.addEventListener('mousedown', startAction);
-    control.addEventListener('touchstart', startAction);
-    control.addEventListener('mouseup', endAction);
-    control.addEventListener('touchend', endAction);
 });
