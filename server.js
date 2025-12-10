@@ -9,15 +9,21 @@ const path = require('path');
 // Serve static files
 app.use(express.static(__dirname));
 
-// Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Game Rooms State
+// { 
+//   roomId: { 
+//      teamA: [socketId, ...], 
+//      teamB: [socketId, ...], 
+//      corePosition: 50,
+//      winner: null 
+//   } 
+// }
 const rooms = {};
 
-// Helper: Generate 4-digit code
 function generateRoomId() {
     return Math.floor(1000 + Math.random() * 9000).toString();
 }
@@ -25,54 +31,101 @@ function generateRoomId() {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
+    // Create Room
     socket.on('create_room', () => {
         const roomId = generateRoomId();
-        socket.join(roomId);
-        rooms[roomId] = { host: socket.id, players: 1 };
-
+        rooms[roomId] = {
+            teamA: [],
+            teamB: [],
+            corePosition: 50,
+            winner: null
+        };
+        // Host doesn't automatically join a team, they must choose in UI
         socket.emit('room_created', roomId);
-        console.log(`Room ${roomId} created by ${socket.id}`);
+        console.log(`Room ${roomId} created`);
     });
 
-    socket.on('join_room', (roomId) => {
-        const room = io.sockets.adapter.rooms.get(roomId);
+    // Join Team
+    socket.on('join_team', ({ roomId, team }) => {
+        const room = rooms[roomId];
 
-        if (!room || room.size === 0) {
+        if (!room) {
             socket.emit('error_msg', "Room not found.");
             return;
         }
 
-        if (room.size >= 2) {
-            socket.emit('error_msg', "Room is full.");
+        // Check if full (10 per team)
+        const targetArray = team === 'A' ? room.teamA : room.teamB;
+        if (targetArray.length >= 10) {
+            socket.emit('error_msg', `Team ${team} is Full (Max 10)!`);
             return;
         }
 
+        // Join
         socket.join(roomId);
-        // Notify host that player joined, so host can start initiating WebRTC Offer
-        socket.to(roomId).emit('player_joined', socket.id);
+        targetArray.push(socket.id);
 
-        // Notify joiner that success
-        socket.emit('joined_success', roomId);
-        console.log(`User ${socket.id} joined room ${roomId}`);
+        // Notify success
+        socket.emit('joined_success', { roomId, team });
+
+        // Broadcast Update to everyone in room
+        io.to(roomId).emit('player_update', {
+            countA: room.teamA.length,
+            countB: room.teamB.length
+        });
+
+        console.log(`${socket.id} joined Room ${roomId} Team ${team}`);
     });
 
-    // Relay WebRTC Signals
-    socket.on('signal', (data) => {
-        // data = { roomId, signal }
-        // Broadcast to everyone else in the room (the opponent)
-        socket.to(data.roomId).emit('signal', data.signal);
-    });
+    // Game Logic: Pull
+    socket.on('pull', ({ roomId, force, team }) => {
+        const room = rooms[roomId];
+        if (!room || room.winner) return;
 
-    // Relay Game Data (if we want to use Socket for game data instead of WebRTC as backup)
-    // But we are sticking to WebRTC for "anti-gravity" feel (low latency).
-    // However, we can use socket for "end game" or "restart" just in case.
+        // Direction: Team A pulls NEGATIVE (Left/0), Team B pulls POSITIVE (Right/100)
+        const direction = (team === 'A') ? -1 : 1;
+        const impact = (force / 100) * 0.5; // Balancer multiplier
+
+        room.corePosition += (impact * direction);
+
+        // Clamp
+        if (room.corePosition < 0) room.corePosition = 0;
+        if (room.corePosition > 100) room.corePosition = 100;
+
+        // Broadcast State
+        io.to(roomId).emit('game_update', {
+            corePosition: room.corePosition,
+            activePower: force // For visual shake
+        });
+
+        // Win Check
+        if (room.corePosition <= 0) {
+            room.winner = 'A';
+            io.to(roomId).emit('game_over', { winner: 'A' });
+        } else if (room.corePosition >= 100) {
+            room.winner = 'B';
+            io.to(roomId).emit('game_over', { winner: 'B' });
+        }
+    });
 
     socket.on('disconnect', () => {
+        // Find room and remove player
+        for (const id in rooms) {
+            const r = rooms[id];
+            if (r.teamA.includes(socket.id)) {
+                r.teamA = r.teamA.filter(pid => pid !== socket.id);
+                io.to(id).emit('player_update', { countA: r.teamA.length, countB: r.teamB.length });
+            } else if (r.teamB.includes(socket.id)) {
+                r.teamB = r.teamB.filter(pid => pid !== socket.id);
+                io.to(id).emit('player_update', { countA: r.teamA.length, countB: r.teamB.length });
+            }
+            // Logic to delete empty room could be added here
+        }
         console.log('User disconnected:', socket.id);
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Pulling gravity on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

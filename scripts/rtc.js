@@ -1,42 +1,31 @@
 class NetworkManager {
     constructor() {
-        this.peer = null;
-        this.channel = null;
-        this.isHost = false;
         this.socket = null;
         this.roomId = null;
+        this.myTeam = null;
 
-        // Public STUN servers
-        this.config = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        };
-
-        this.onConnect = null;
-        this.onData = null;
-        this.onRoomCreated = null; // Callback to show ID to host
+        // Callbacks
+        this.onRoomCreated = null;
+        this.onJoinSuccess = null;
+        this.onPlayerUpdate = null; // { countA, countB }
+        this.onGameUpdate = null;   // { corePosition, activePower }
+        this.onGameOver = null;     // { winner }
+        this.onError = null;        // msg
     }
 
-    init(mode) {
-        this.isHost = (mode === 'host');
-
+    init() {
         try {
-            this.socket = io(); // Connect to Replit server
+            this.socket = io();
         } catch (e) {
-            console.error("Socket.io not found. Run on server!", e);
-            alert("Error: Server not found. Are you running via node server.js?");
+            console.error("Socket.io missing", e);
+            if (this.onError) this.onError("Server connection failed!");
             return;
         }
 
         // --- Socket Events ---
 
         this.socket.on('connect', () => {
-            console.log("Connected to server via Socket.io");
-            if (this.isHost) {
-                this.socket.emit('create_room');
-            }
+            console.log("Connected to server");
         });
 
         this.socket.on('room_created', (id) => {
@@ -44,95 +33,46 @@ class NetworkManager {
             if (this.onRoomCreated) this.onRoomCreated(id);
         });
 
+        this.socket.on('joined_success', (data) => {
+            this.roomId = data.roomId;
+            this.myTeam = data.team;
+            console.log("Joined Team:", this.myTeam);
+            if (this.onJoinSuccess) this.onJoinSuccess(data);
+        });
+
         this.socket.on('error_msg', (msg) => {
-            alert(msg);
-            window.location.href = 'index.html';
+            if (this.onError) this.onError(msg);
         });
 
-        // For Joiner
-        this.socket.on('joined_success', (id) => {
-            this.roomId = id;
-            console.log("Joined room:", id);
-            // Wait for Offer from Host
+        this.socket.on('player_update', (data) => {
+            if (this.onPlayerUpdate) this.onPlayerUpdate(data);
         });
 
-        // For Host: Player joined, start WebRTC Offer
-        this.socket.on('player_joined', (id) => {
-            console.log("Player joined! Initiating WebRTC...");
-            this.startWebRTC(true); // Initiator
+        this.socket.on('game_update', (data) => {
+            if (this.onGameUpdate) this.onGameUpdate(data);
         });
 
-        // Signaling Relay
-        this.socket.on('signal', async (signal) => {
-            if (!this.peer) this.startWebRTC(false);
-
-            try {
-                if (signal.type === 'offer') {
-                    await this.peer.setRemoteDescription(signal);
-                    const answer = await this.peer.createAnswer();
-                    await this.peer.setLocalDescription(answer);
-                    this.socket.emit('signal', { roomId: this.roomId, signal: this.peer.localDescription });
-                } else if (signal.type === 'answer') {
-                    await this.peer.setRemoteDescription(signal);
-                } else if (signal.candidate) {
-                    await this.peer.addIceCandidate(signal.candidate);
-                }
-            } catch (err) {
-                console.error("Signaling Error", err);
-            }
+        this.socket.on('game_over', (data) => {
+            if (this.onGameOver) this.onGameOver(data);
         });
     }
 
-    joinRoom(id) {
-        this.socket.emit('join_room', id);
+    // Actions
+    createRoom() {
+        this.socket.emit('create_room');
     }
 
-    startWebRTC(isInitiator) {
-        this.peer = new RTCPeerConnection(this.config);
-
-        this.peer.onicecandidate = (e) => {
-            if (e.candidate) {
-                this.socket.emit('signal', {
-                    roomId: this.roomId,
-                    signal: { candidate: e.candidate }
-                }); // Send ICE candidates as they come
-            }
-        };
-
-        this.peer.onconnectionstatechange = () => {
-            if (this.peer.connectionState === 'connected') {
-                if (this.onConnect) this.onConnect();
-            }
-        };
-
-        if (isInitiator) {
-            this.channel = this.peer.createDataChannel("game");
-            this.setupChannel(this.channel);
-
-            this.peer.createOffer()
-                .then(offer => this.peer.setLocalDescription(offer))
-                .then(() => {
-                    this.socket.emit('signal', { roomId: this.roomId, signal: this.peer.localDescription });
-                });
-        } else {
-            this.peer.ondatachannel = (e) => {
-                this.channel = e.channel;
-                this.setupChannel(this.channel);
-            };
-        }
+    joinTeam(roomId, team) {
+        this.socket.emit('join_team', { roomId, team });
     }
 
-    setupChannel(chan) {
-        chan.onopen = () => console.log("DataChannel Open");
-        chan.onmessage = (e) => {
-            if (this.onData) this.onData(JSON.parse(e.data));
-        };
-    }
-
-    send(data) {
-        if (this.channel && this.channel.readyState === 'open') {
-            this.channel.send(JSON.stringify(data));
-        }
+    sendPullForce(force) {
+        if (!this.roomId || !this.myTeam) return;
+        this.socket.emit('pull', {
+            roomId: this.roomId,
+            force: force,
+            team: this.myTeam
+        });
     }
 }
 

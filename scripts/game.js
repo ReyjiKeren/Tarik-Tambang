@@ -1,28 +1,156 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Setup
     const renderer = new GameRenderer('game-canvas');
-    const net = window.Network; // from rtc.js
+    const net = window.Network; // from rtc.js (now pure socket)
 
     // DOM Elements
-    const p1ScoreEl = document.getElementById('p1-score');
-    const p2ScoreEl = document.getElementById('p2-score');
+    const p1ScoreEl = document.getElementById('p1-score'); // Now Team A
+    const p2ScoreEl = document.getElementById('p2-score'); // Now Team B
     const chargeBar = document.getElementById('charge-bar');
     const connectionModal = document.getElementById('connection-modal');
+
+    // Step 1 UI
+    const step1 = document.getElementById('step-1');
     const displayCode = document.getElementById('code-display');
-    const inputCodeStr = document.getElementById('code-input');
+    const inputCode = document.getElementById('code-input');
+    const btnNext = document.getElementById('btn-next-step');
+
+    // Step 2 UI (Teams)
+    const stepTeam = document.getElementById('step-team');
+    const btnJoinA = document.getElementById('btn-join-a');
+    const btnJoinB = document.getElementById('btn-join-b');
+    const countA = document.getElementById('count-a');
+    const countB = document.getElementById('count-b');
+
     const resultModal = document.getElementById('result-modal');
+    const toastContainer = document.getElementById('toast-container');
+
+    // Toasts
+    function showToast(msg, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = 'toast-msg ' + type; // define CSS later if needed
+        toast.style.background = 'rgba(0,0,0,0.8)';
+        toast.style.border = '1px solid var(--neon-cyan)';
+        toast.style.padding = '10px 20px';
+        toast.style.color = '#fff';
+        toast.style.borderRadius = '5px';
+        toast.innerText = msg;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
 
     // State
     const state = {
-        corePosition: 50, // 0 (P1 Win) - 100 (P2 Win)
-        corePower: 0, // Visual intensity
+        corePosition: 50,
+        corePower: 0,
         ropeTension: 0.5,
-        myPower: 0, // Charging
+        myPower: 0,
         isCharging: false,
         gameActive: false
     };
 
-    // Game Loop
+    net.init();
+
+    // Mode Detection
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode') || 'host';
+
+    if (mode === 'host') {
+        document.getElementById('modal-title').innerText = "HQ COMMAND";
+        document.getElementById('modal-desc').innerText = "Initializing Room...";
+        displayCode.classList.remove('hidden');
+        net.createRoom();
+        // Note: Host will enter Team Selection after creation
+    } else {
+        document.getElementById('modal-title').innerText = "JOIN SQUAD";
+        document.getElementById('modal-desc').innerText = "Enter Operation ID:";
+        inputCode.classList.remove('hidden');
+        btnNext.classList.remove('hidden');
+    }
+
+    // --- Network Events Wiring ---
+
+    net.onRoomCreated = (id) => {
+        displayCode.innerText = `ID: ${id}`;
+        document.getElementById('modal-desc').innerText = "Share ID & Select Team:";
+        stepTeam.classList.remove('hidden'); // Show team selector immediately for host
+    };
+
+    net.onError = (msg) => {
+        showToast(msg, 'error');
+    };
+
+    net.onPlayerUpdate = (data) => {
+        countA.innerText = `(${data.countA}/10)`;
+        countB.innerText = `(${data.countB}/10)`;
+    };
+
+    net.onJoinSuccess = (data) => {
+        // Hide Modal, Start Game
+        connectionModal.classList.add('hidden');
+        state.gameActive = true;
+        showToast(`Joined Team ${data.team === 'A' ? 'CYAN' : 'MAGENTA'}!`);
+
+        // Update HUD labels
+        p1ScoreEl.innerText = "TEAM CYAN";
+        p2ScoreEl.innerText = "TEAM MAGENTA";
+    };
+
+    net.onGameUpdate = (data) => {
+        state.corePosition = data.corePosition;
+        // Shake effect based on power
+        if (data.activePower > 50) {
+            renderer.shake(5);
+        }
+    };
+
+    net.onGameOver = (data) => {
+        state.gameActive = false;
+        const myTeam = net.myTeam;
+        const winner = data.winner; // 'A' or 'B'
+
+        const isVictory = (myTeam === winner);
+
+        document.getElementById('result-title').innerText = isVictory ? "MENANG" : "KALAH";
+        document.getElementById('result-title').style.color = isVictory ? "var(--neon-cyan)" : "var(--neon-magenta)";
+
+        resultModal.classList.remove('hidden');
+    };
+
+    // --- UI Interactions ---
+
+    btnNext.onclick = () => {
+        const id = inputCode.value;
+        if (id.length === 4) {
+            // We don't join immediately, just "configure" to see teams? 
+            // Simplified: User enters ID, then we show Team Selector. 
+            // We need to ask server "does this room exist?" before showing selector?
+            // For simplicity in this iteration:
+            // Just assume room exists or handle error later.
+            // We use 'join_team' directly. So we store ID and show selector.
+            net.roomId = id;
+            step1.classList.add('hidden');
+            stepTeam.classList.remove('hidden');
+            document.getElementById('modal-title').innerText = `ROOM ${id}`;
+            document.getElementById('modal-desc').innerText = "Choose your allegiance:";
+        } else {
+            showToast("Invalid ID length");
+        }
+    };
+
+    btnJoinA.onclick = () => {
+        const id = net.roomId || displayCode.innerText.replace("ID: ", "");
+        net.joinTeam(id, 'A');
+    };
+
+    btnJoinB.onclick = () => {
+        const id = net.roomId || displayCode.innerText.replace("ID: ", "");
+        net.joinTeam(id, 'B');
+    };
+
+
+    // --- Game Loop (Visuals) ---
+
     let lastTime = 0;
     function loop(timestamp) {
         if (!lastTime) lastTime = timestamp;
@@ -32,41 +160,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.gameActive) {
             updateLogic(dt);
         }
-
         renderer.draw(state);
         requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
 
-    // Logic
     function updateLogic(dt) {
-        // Charging logic
         if (state.isCharging) {
             state.myPower = Math.min(state.myPower + 0.5, 100);
-        } else {
-            // Decay charge if not holding (optional)
-            // state.myPower = Math.max(state.myPower - 0.2, 0);
         }
-
-        // Visual Decay of Core Power
         state.corePower *= 0.95;
-
-        // UI Update
         chargeBar.style.width = `${state.myPower}%`;
-
-        // Win Condition
-        if (state.corePosition <= 0) endGame('You');
-        if (state.corePosition >= 100) endGame('Opponent');
     }
 
-    function endGame(winner) {
-        state.gameActive = false;
-        document.getElementById('result-title').innerText =
-            (winner === 'You') ? 'VICTORY' : 'DEFEAT';
-        resultModal.classList.remove('hidden');
-    }
-
-    // Input Handling
+    // --- Inputs ---
     const control = document.getElementById('control-layer');
 
     const startAction = (e) => {
@@ -82,11 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
         state.isCharging = false;
         state.ropeTension = 0.5;
 
-        // Release Force
         const force = state.myPower;
         if (force > 0) {
-            applyForce(force);
-            state.myPower = 0; // Reset charge
+            net.sendPullForce(force); // Server handles logic
+            state.myPower = 0;
+            renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 5);
         }
     };
 
@@ -94,79 +201,4 @@ document.addEventListener('DOMContentLoaded', () => {
     control.addEventListener('touchstart', startAction);
     control.addEventListener('mouseup', endAction);
     control.addEventListener('touchend', endAction);
-
-    function applyForce(amount) {
-        // Send to network
-        net.send({ type: 'pull', force: amount });
-
-        // Apply locally
-        // If I am P1 (Host default?), I pull towards 0.
-        // If I am P2 (Joiner?), I pull towards 100?
-        // Let's decide direction based on Host/Client
-
-        const direction = net.isHost ? -1 : 1;
-        const impact = (amount / 100) * 5; // Scaling factor
-
-        state.corePosition += (impact * direction);
-        state.corePower = amount; // Visual flare
-        renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 10);
-    }
-
-    // Networking Setup
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode') || 'host';
-
-    // Initialize Network
-    net.init(mode);
-
-    // UI for Connection
-    if (mode === 'host') {
-        document.getElementById('modal-title').innerText = "Mission Control";
-        document.getElementById('modal-desc').innerText = "Waiting for pilot...";
-        displayCode.classList.remove('hidden');
-
-        // Show Room ID when generated
-        net.onRoomCreated = (id) => {
-            displayCode.innerText = `ID: ${id}`;
-        };
-
-    } else {
-        document.getElementById('modal-title').innerText = "Join Frequency";
-        document.getElementById('modal-desc').innerText = "Enter Host ID:";
-
-        const input = document.getElementById('code-input');
-        const btn = document.getElementById('modal-action-btn');
-
-        input.classList.remove('hidden');
-        btn.classList.remove('hidden');
-        btn.innerText = "Connect";
-
-        btn.onclick = () => {
-            const id = input.value;
-            if (id) {
-                net.joinRoom(id);
-                btn.innerText = "Connecting...";
-                btn.disabled = true;
-            }
-        };
-    }
-
-    // Hook Network Events
-    net.onConnect = () => {
-        connectionModal.classList.add('hidden');
-        state.gameActive = true;
-    };
-
-    net.onData = (data) => {
-        if (data.type === 'pull') {
-            const amount = data.force;
-            // Enemy pull direction is opposite to mine
-            const direction = net.isHost ? 1 : -1; // Enemy is Client(1) if I am Host(-1)
-            const impact = (amount / 100) * 5;
-
-            state.corePosition += (impact * direction);
-            state.corePower = amount;
-            renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 5);
-        }
-    };
 });
