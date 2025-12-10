@@ -119,121 +119,118 @@
 
         <!-- Power Charge Bar (Center Bottom) -->
         <div style="width: 50%; align-self: center; margin-bottom: 50px;">
-            <div class="neon-text" style="text-align: center; font-size: 1rem;">Tarik tambang Digital</div>
+            <div class="neon-text" style="text-align: center; font-size: 1rem;">ANTI-GRAVITY FORCE</div>
             <div class="power-meter">
                 <div id="charge-bar" class="power-fill"></div>
             </div>
-            <!-- Scripts -->
-            <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-            <script src="scripts/render.js"></script>
-            <script src="scripts/rtc.js"></script>
-            <script src="scripts/game.js"></script>
+        </div>
+    </div>
 
-            <!-- Toast Container -->
-            <div id="toast-container"
-                style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none; width: 80%; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    <!-- Invisible Control Layer -->
+    <div id="control-layer"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"
+        style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none; width: 80%; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    </div>
+
+    <!-- Main Modal (Handles Login, Connection, Lobby) -->
+    <div id="main-modal" class="modal">
+        <h2 id="modal-title" class="neon-text">IDENTITY VERIFIED</h2>
+
+        <!-- Step 0: Username Login -->
+        <div id="step-login">
+            <p style="color: #aaa; margin-bottom: 10px;">Enter Agent Name:</p>
+            <input type="text" id="username-input" placeholder="Codename"
+                style="background: transparent; border: 1px solid var(--neon-cyan); padding: 0.8rem; color: #fff; width: 100%; font-size: 1.2rem; text-align: center; margin-bottom: 1rem;">
+            <button id="btn-login" class="btn-main">INITIALIZE</button>
+        </div>
+
+        <!-- Step 1: Host/Join (Short ID) -->
+        <div id="step-connect" class="hidden">
+            <p id="modal-desc" style="margin-bottom: 1rem; color: #aaa;">Mission Control</p>
+
+            <!-- Host View -->
+            <div id="code-display" class="copy-box hidden">????</div>
+
+            <!-- Client View -->
+            <input type="number" id="code-input" class="hidden" placeholder="Enter Room ID"
+                style="background: transparent; border: 1px solid var(--neon-cyan); padding: 1rem; color: #fff; width: 100%; font-size: 1.5rem; text-align: center; margin-bottom: 1rem;">
+            <button id="btn-connect-room" class="btn-main hidden">Connect</button>
+        </div>
+
+        <!-- Step 2: Team Selection -->
+        <div id="step-team" class="hidden" style="margin-top: 20px;">
+            <p style="color: #fff; margin-bottom: 10px;">CHOOSE ALLEGIANCE</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-join-a" class="btn-main"
+                    style="border-color: var(--neon-cyan); color: var(--neon-cyan);">CYAN</button>
+                <button id="btn-join-b" class="btn-main"
+                    style="border-color: var(--neon-magenta); color: var(--neon-magenta);">MAGENTA</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Lobby (Waiting Room) -->
+        <div id="step-lobby" class="hidden" style="margin-top: 20px; text-align: left;">
+            <p style="text-align: center; color: #fff;">LOBBY STATUS: <span id="lobby-status"
+                    style="color: var(--neon-cyan)">WAITING</span></p>
+
+            <div style="display: flex; gap: 20px; justify-content: space-between; margin-top: 10px;">
+                <div style="width: 45%;">
+                    <h4 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan)">TEAM CYAN</h4>
+                    <ul id="list-team-a"
+                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
+                    </ul>
+                </div>
+                <div style="width: 45%;">
+                    <h4 style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta)">TEAM MAGENTA
+                    </h4>
+                    <ul id="list-team-b"
+                        style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
+                    </ul>
+                </div>
             </div>
 
-            <!-- Main Modal (Handles Login, Connection, Lobby) -->
-            <div id="main-modal" class="modal">
-                <h2 id="modal-title" class="neon-text">IDENTITY VERIFIED</h2>
+            <button id="btn-start-game" class="btn-main hidden"
+                style="width: 100%; margin-top: 20px; background: rgba(0,255,255,0.2);">START MISSION</button>
+            <p id="msg-waiting-host" class="hidden"
+                style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">Waiting for Host...</p>
+        </div>
 
-                <!-- Step 0: Username Login -->
-                <div id="step-login">
-                    <p style="color: #aaa; margin-bottom: 10px;">Enter Agent Name:</p>
-                    <input type="text" id="username-input" placeholder="Codename"
-                        style="background: transparent; border: 1px solid var(--neon-cyan); padding: 0.8rem; color: #fff; width: 100%; font-size: 1.2rem; text-align: center; margin-bottom: 1rem;">
-                    <button id="btn-login" class="btn-main">INITIALIZE</button>
-                </div>
+        <br>
+        <button onclick="window.location.href='index.html'" class="btn-main"
+            style="font-size: 0.8rem; padding: 0.5rem 1rem; margin-top: 10px; border-color: #666; color: #aaa; display: block; margin-left: auto; margin-right: auto;">
+            Back to Menu
+        </button>
+    </div>
 
-                <!-- Step 1: Host/Join (Short ID) -->
-                <div id="step-connect" class="hidden">
-                    <p id="modal-desc" style="margin-bottom: 1rem; color: #aaa;">Mission Control</p>
+    <!-- Result Modal (Leaderboard) -->
+    <div id="result-modal" class="modal hidden" style="width: 90%; max-width: 500px;">
+        <h1 id="result-title" class="neon-text">VICTORY</h1>
 
-                    <!-- Host View -->
-                    <div id="code-display" class="copy-box hidden">????</div>
+        <div style="margin: 20px 0; max-height: 300px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; color: #fff;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #666;">
+                        <th style="padding: 5px; text-align: left;">Rank</th>
+                        <th style="padding: 5px; text-align: left;">Agent</th>
+                        <th style="padding: 5px; text-align: right;">Clicks</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <!-- Rows injected here -->
+                </tbody>
+            </table>
+        </div>
 
-                    <!-- Client View -->
-                    <input type="number" id="code-input" class="hidden" placeholder="Enter Room ID"
-                        style="background: transparent; border: 1px solid var(--neon-cyan); padding: 1rem; color: #fff; width: 100%; font-size: 1.5rem; text-align: center; margin-bottom: 1rem;">
-                    <button id="btn-connect-room" class="btn-main hidden">Connect</button>
-                </div>
+        <button onclick="location.href='index.html'" class="btn-main">Return to Orbit</button>
+    </div>
 
-                <!-- Step 2: Team Selection -->
-                <div id="step-team" class="hidden" style="margin-top: 20px;">
-                    <p style="color: #fff; margin-bottom: 10px;">CHOOSE ALLEGIANCE</p>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button id="btn-join-a" class="btn-main"
-                            style="border-color: var(--neon-cyan); color: var(--neon-cyan);">CYAN</button>
-                        <button id="btn-join-b" class="btn-main"
-                            style="border-color: var(--neon-magenta); color: var(--neon-magenta);">MAGENTA</button>
-                    </div>
-                </div>
-
-                <!-- Step 3: Lobby (Waiting Room) -->
-                <div id="step-lobby" class="hidden" style="margin-top: 20px; text-align: left;">
-                    <p style="text-align: center; color: #fff;">LOBBY STATUS: <span id="lobby-status"
-                            style="color: var(--neon-cyan)">WAITING</span></p>
-
-                    <div style="display: flex; gap: 20px; justify-content: space-between; margin-top: 10px;">
-                        <div style="width: 45%;">
-                            <h4 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan)">TEAM CYAN
-                            </h4>
-                            <ul id="list-team-a"
-                                style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
-                            </ul>
-                        </div>
-                        <div style="width: 45%;">
-                            <h4 style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta)">TEAM
-                                MAGENTA
-                            </h4>
-                            <ul id="list-team-b"
-                                style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 100px; overflow-y: auto;">
-                            </ul>
-                        </div>
-                    </div>
-
-                    <button id="btn-start-game" class="btn-main hidden"
-                        style="width: 100%; margin-top: 20px; background: rgba(0,255,255,0.2);">START MISSION</button>
-                    <p id="msg-waiting-host" class="hidden"
-                        style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">Waiting for
-                        Host...</p>
-                </div>
-
-                <br>
-                <button onclick="window.location.href='index.html'" class="btn-main"
-                    style="font-size: 0.8rem; padding: 0.5rem 1rem; margin-top: 10px; border-color: #666; color: #aaa; display: block; margin-left: auto; margin-right: auto;">
-                    Back to Menu
-                </button>
-            </div>
-
-            <!-- Result Modal (Leaderboard) -->
-            <div id="result-modal" class="modal hidden" style="width: 90%; max-width: 500px;">
-                <h1 id="result-title" class="neon-text">VICTORY</h1>
-
-                <div style="margin: 20px 0; max-height: 300px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse; color: #fff;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid #666;">
-                                <th style="padding: 5px; text-align: left;">Rank</th>
-                                <th style="padding: 5px; text-align: left;">Agent</th>
-                                <th style="padding: 5px; text-align: right;">Clicks</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaderboard-body">
-                            <!-- Rows injected here -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <button onclick="location.href='index.html'" class="btn-main">Return to Orbit</button>
-            </div>
-
-            <!-- Scripts -->
-            <script src="/socket.io/socket.io.js"></script>
-            <script src="scripts/render.js"></script>
-            <script src="scripts/rtc.js"></script>
-            <script src="scripts/game.js"></script>
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="scripts/render.js"></script>
+    <script src="scripts/rtc.js"></script>
+    <script src="scripts/game.js"></script>
 </body>
 
 </html>
