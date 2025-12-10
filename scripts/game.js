@@ -242,7 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = timestamp;
         renderer.draw({
             corePosition: state.corePosition,
-            ropeTension: state.gameActive ? 0.8 : 0.5
+            ropeTension: state.gameActive ? 0.8 : 0.5,
+            corePower: state.pendingClicks * 10 // Visual feedback for clicks
         });
         requestAnimationFrame(loop);
     }
