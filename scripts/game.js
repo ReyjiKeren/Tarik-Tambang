@@ -254,7 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 6. End Game (Leaderboard) ---
     // --- 6. End Game (Leaderboard) ---
+    // --- 6. End Game (Leaderboard) ---
     net.onGameOver = (data) => {
+        console.log("Game Over Data:", data); // Debug log
+
         state.gameActive = false;
         mainModal.classList.add('hidden'); // Ensure hidden
         resultModal.classList.remove('hidden');
@@ -267,18 +270,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Find MVP (Highest Score)
         let mvpId = null;
         let maxScore = -1;
-        data.leaderboard.forEach(p => {
-            if (p.score > maxScore) {
-                maxScore = p.score;
-                mvpId = p.id;
-            }
-        });
+        if (data.leaderboard && data.leaderboard.length > 0) {
+            data.leaderboard.forEach(p => {
+                if (p.score > maxScore) {
+                    maxScore = p.score;
+                    mvpId = p.id;
+                }
+            });
+        }
 
         // Split Teams
         const teamA = data.leaderboard.filter(p => p.team === 'A').sort((a, b) => b.score - a.score);
         const teamB = data.leaderboard.filter(p => p.team === 'B').sort((a, b) => b.score - a.score);
 
         const renderList = (list) => {
+            if (!list || list.length === 0) return '<div style="color: #666; font-style: italic;">No Agents</div>';
+
             return list.map((p, i) => {
                 const isMVP = p.id === mvpId;
                 const bgStyle = isMVP ? 'background: rgba(255, 215, 0, 0.2); border: 1px solid gold;' : 'border-bottom: 1px solid #333;';
@@ -294,8 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
         };
 
-        document.getElementById('stats-cyan').innerHTML = renderList(teamA);
-        document.getElementById('stats-magenta').innerHTML = renderList(teamB);
+        const cyanContainer = document.getElementById('stats-cyan');
+        const magentaContainer = document.getElementById('stats-magenta');
+
+        if (cyanContainer) cyanContainer.innerHTML = renderList(teamA);
+        if (magentaContainer) magentaContainer.innerHTML = renderList(teamB);
     };
 
 });

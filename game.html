@@ -221,43 +221,40 @@
     </div>
 
     <!-- Result Modal (Leaderboard) -->
-    <div id="result-modal" class="modal hidden" style="width: 90%; max-width: 500px;">
+    <div id="result-modal" class="modal hidden" style="width: 95%; max-width: 700px;">
         <h1 id="result-title" class="neon-text">VICTORY</h1>
 
-        <div id="result-modal" class="modal hidden" style="width: 95%; max-width: 700px;">
-            <h1 id="result-title" class="neon-text">VICTORY</h1>
+        <div
+            style="display: flex; gap: 20px; justify-content: space-between; margin: 20px 0; max-height: 400px; overflow-y: auto;">
 
+            <!-- Team Cyan Stats -->
             <div
-                style="display: flex; gap: 20px; justify-content: space-between; margin: 20px 0; max-height: 400px; overflow-y: auto;">
-
-                <!-- Team Cyan Stats -->
-                <div
-                    style="width: 48%; background: rgba(0,255,255,0.05); padding: 10px; border: 1px solid var(--neon-cyan);">
-                    <h3
-                        style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); text-align: center; margin-bottom: 10px;">
-                        TEAM CYAN</h3>
-                    <div id="stats-cyan" style="font-size: 0.9rem;"></div>
-                </div>
-
-                <!-- Team Magenta Stats -->
-                <div
-                    style="width: 48%; background: rgba(255,0,255,0.05); padding: 10px; border: 1px solid var(--neon-magenta);">
-                    <h3
-                        style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta); text-align: center; margin-bottom: 10px;">
-                        TEAM MAGENTA</h3>
-                    <div id="stats-magenta" style="font-size: 0.9rem;"></div>
-                </div>
-
+                style="width: 48%; background: rgba(0,255,255,0.05); padding: 10px; border: 1px solid var(--neon-cyan);">
+                <h3
+                    style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); text-align: center; margin-bottom: 10px;">
+                    TEAM CYAN</h3>
+                <div id="stats-cyan" style="font-size: 0.9rem; min-height: 50px;"></div>
             </div>
 
-            <button onclick="location.href='index.html'" class="btn-main">Return to Orbit</button>
+            <!-- Team Magenta Stats -->
+            <div
+                style="width: 48%; background: rgba(255,0,255,0.05); padding: 10px; border: 1px solid var(--neon-magenta);">
+                <h3
+                    style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta); text-align: center; margin-bottom: 10px;">
+                    TEAM MAGENTA</h3>
+                <div id="stats-magenta" style="font-size: 0.9rem; min-height: 50px;"></div>
+            </div>
+
         </div>
 
-        <!-- Scripts -->
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="scripts/render.js"></script>
-        <script src="scripts/rtc.js"></script>
-        <script src="scripts/game.js"></script>
+        <button onclick="location.href='index.html'" class="btn-main">Return to Orbit</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="scripts/render.js"></script>
+    <script src="scripts/rtc.js"></script>
+    <script src="scripts/game.js"></script>
 </body>
 
 </html>
