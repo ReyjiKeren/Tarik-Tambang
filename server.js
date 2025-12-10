@@ -46,6 +46,7 @@ io.on('connection', (socket) => {
 
         // Host joins as Unassigned first
         rooms[roomId].players[socket.id] = {
+            id: socket.id,
             username: username || "Host",
             team: 'unassigned',
             score: 0
@@ -92,6 +93,7 @@ io.on('connection', (socket) => {
 
         // Register/Update Player
         room.players[socket.id] = {
+            id: socket.id,
             username: username || `Soldier-${socket.id.substr(0, 4)}`,
             team: targetTeam,
             score: 0

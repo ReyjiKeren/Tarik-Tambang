@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
         role: null, // 'host' or 'joiner'
         gameActive: false,
         corePosition: 50,
-        pendingClicks: 0
+        pendingClicks: 0,
+        myTeam: 'unassigned'
     };
 
     // --- DOM Elements ---
@@ -113,14 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 net.createRoom(state.username);
             }
         });
+
     };
 
     net.onRoomCreated = (id) => {
         displayCode.innerText = `ID: ${id}`;
         // Host goes directly to Lobby (as Unassigned)
-        net.roomId = id; // Ensure roomId is set in net
-        // Wait for lobby_update to switch UI
-        // Actually createRoom on server triggers lobby_update immediately
+        net.roomId = id;
     };
 
     btnConnectRoom.onclick = () => {
@@ -150,15 +150,17 @@ document.addEventListener('DOMContentLoaded', () => {
         listA.innerHTML = data.teamA.map(p => `<li>${p.username}</li>`).join('');
         listB.innerHTML = data.teamB.map(p => `<li>${p.username}</li>`).join('');
 
-        // Find myself
-        const amICyan = data.teamA.some(p => p.username === state.username);
-        const amIMagenta = data.teamB.some(p => p.username === state.username);
+        // Find myself (Using Socket ID for consistency)
+        const myId = net.socket ? net.socket.id : null;
+        // Check if ID is in team A or B
+        const amICyan = data.teamA.some(p => p.id === myId);
+        const amIMagenta = data.teamB.some(p => p.id === myId);
 
         if (amICyan) state.myTeam = 'A';
         else if (amIMagenta) state.myTeam = 'B';
         else state.myTeam = 'unassigned';
 
-        controlsUnassigned.classList.remove('hidden'); // Allow switching anytime
+        controlsUnassigned.classList.remove('hidden');
 
         // Provide Status
         const total = data.unassigned.length + data.teamA.length + data.teamB.length;
@@ -189,19 +191,20 @@ document.addEventListener('DOMContentLoaded', () => {
         mainModal.classList.add('hidden');
         state.gameActive = true;
         showToast("MISSION START! TAP FAST!", "success");
+
+        if (state.myTeam === 'unassigned') {
+            showToast("WARNING: You are Spectating (No Team)", "error");
+        }
     };
 
     // --- 4. Game Input (Click Spam) ---
     const control = document.getElementById('control-layer');
 
+    // Timer for sending clicks
     setInterval(() => {
-        if (state.pendingClicks > 0 && state.gameActive) {
+        if (state.pendingClicks > 0 && state.gameActive && state.myTeam !== 'unassigned') {
             net.sendClickSpam(state.pendingClicks);
             state.pendingClicks = 0;
-        }
-        // Visual Decay
-        if (chargeBar.style.width !== '0%') {
-            // chargeBar.style.width = '0%'; // keep it flashing 
         }
     }, clickBatchInterval);
 
@@ -235,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderer.draw({
             corePosition: state.corePosition,
             ropeTension: state.gameActive ? 0.8 : 0.5,
-            corePower: state.pendingClicks * 10 // rough visual feedback
+            corePower: state.pendingClicks * 10
         });
         requestAnimationFrame(loop);
     }
