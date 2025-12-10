@@ -130,11 +130,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalInit = net.init.bind(net);
     net.init = () => {
         originalInit();
-        net.socket.on('connect', () => {
-            if (state.role === 'host') {
-                net.createRoom(state.username);
-            }
-        });
+        if (net.socket) {
+            net.socket.on('connect', () => {
+                if (state.role === 'host') {
+                    net.createRoom(state.username);
+                }
+            });
+        }
     };
 
     net.onRoomCreated = (id) => {
