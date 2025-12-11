@@ -132,10 +132,10 @@ io.on('connection', (socket) => {
     socket.on('start_game', (roomId) => {
         const room = rooms[roomId];
         if (!room) return;
-        if (socket.id !== room.hostId) {
-            socket.emit('error_msg', "ACCESS DENIED: Only HQ (Host) can start mission!");
-            return;
-        }
+        // if (socket.id !== room.hostId) {
+        //     socket.emit('error_msg', "ACCESS DENIED: Only HQ (Host) can start mission!");
+        //     return;
+        // }
 
         const players = Object.values(room.players);
         const countA = players.filter(p => p.team === 'A').length;
