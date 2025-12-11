@@ -260,6 +260,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const existingToast = document.querySelector('.round-toast');
         if (existingToast) existingToast.remove();
 
+        console.log("GAME STARTED EVENT RECEIVED", data);
+        mainModal.classList.add('hidden');
+        state.gameActive = true;
+        showToast("MISSION START! TAP FAST!", "success");
+
+        if (data && data.stats) {
+            document.getElementById('p1-score').innerText = `TEAM A: ${data.stats.winsA}`;
+            document.getElementById('p2-score').innerText = `TEAM B: ${data.stats.winsB}`;
+            document.getElementById('round-display').innerText = `ROUND ${data.stats.currentRound}`;
+        }
+
+        if (state.myTeam === 'unassigned') {
+            showToast("WARNING: You are Spectating (No Team)", "error");
+        }
     };
 
 
