@@ -12,6 +12,7 @@ class NetworkManager {
         this.onGameStarted = null;
         this.onGameUpdate = null;   // { corePosition, activePower }
         this.onGameOver = null;     // { winner, leaderboard }
+        this.onRoundOver = null;    // New: { winner, stats }
         this.onError = null;        // msg
     }
 
@@ -42,8 +43,8 @@ class NetworkManager {
             if (this.onLobbyUpdate) this.onLobbyUpdate(data);
         });
 
-        this.socket.on('game_started', () => {
-            if (this.onGameStarted) this.onGameStarted();
+        this.socket.on('game_started', (data) => {
+            if (this.onGameStarted) this.onGameStarted(data);
         });
 
         this.socket.on('error_msg', (msg) => {
@@ -52,6 +53,10 @@ class NetworkManager {
 
         this.socket.on('game_update', (data) => {
             if (this.onGameUpdate) this.onGameUpdate(data);
+        });
+
+        this.socket.on('round_over', (data) => {
+            if (this.onRoundOver) this.onRoundOver(data);
         });
 
         this.socket.on('game_over', (data) => {

@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(loop);
 
     // --- 6. Round Over ---
-    net.socket.on('round_over', (data) => {
+    net.onRoundOver = (data) => {
         state.gameActive = false;
         const msg = data.winner === 'A' ? "CYAN WINS ROUND!" : "MAGENTA WINS ROUND!";
         const color = data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)";
@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             roundToast.remove();
         }, 2500); // Remove before next round starts
-    });
+    };
 
     // --- 7. Match Over (Leaderboard) ---
     net.onGameOver = (data) => {
