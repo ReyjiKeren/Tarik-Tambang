@@ -7,6 +7,7 @@ class GameRenderer {
 
         // Visual params
         this.particles = [];
+        this.ripples = []; // New: Store ripple effects
         this.ropeOffset = 0;
         this.shakeIntensity = 0;
     }
@@ -20,6 +21,48 @@ class GameRenderer {
 
     shake(amount) {
         this.shakeIntensity = amount;
+    }
+
+    // New: Ripple Logic
+    spawnRipple(x, y, color) {
+        this.ripples.push({
+            x: x,
+            y: y,
+            radius: 0,
+            maxRadius: 50 + Math.random() * 30, // Random size
+            alpha: 1.0,
+            color: color
+        });
+    }
+
+    drawRipples() {
+        for (let i = this.ripples.length - 1; i >= 0; i--) {
+            let r = this.ripples[i];
+            r.radius += 2; // Expansion speed
+            r.alpha -= 0.03; // Fade speed
+
+            if (r.alpha <= 0) {
+                this.ripples.splice(i, 1);
+            } else {
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'lighter'; // Glow effect
+                this.ctx.beginPath();
+                this.ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+
+                // Outer Glow Ring
+                this.ctx.strokeStyle = r.color; // e.g. 'rgba(0, 243, 255, 1)'
+                this.ctx.lineWidth = 2; // Thicker line
+                this.ctx.globalAlpha = r.alpha;
+                this.ctx.stroke();
+
+                // Faint Inner Fill
+                this.ctx.fillStyle = r.color;
+                this.ctx.globalAlpha = r.alpha * 0.2;
+                this.ctx.fill();
+
+                this.ctx.restore();
+            }
+        }
     }
 
     draw(state) {
@@ -36,6 +79,9 @@ class GameRenderer {
 
         this.ctx.save();
         this.ctx.translate(dx, dy);
+
+        // Background Ripples (Draw behind everything)
+        this.drawRipples();
 
         // Core Position (0 to 100). 50 is center.
         // Map 0-100 to 10%-90% of screen width to keep it visible

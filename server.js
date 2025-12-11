@@ -17,11 +17,11 @@ app.get('/', (req, res) => {
 //   id: "1234",
 //   status: "LOBBY" | "PLAYING" | "ENDED",
 //   hostId: "socketId",
-//   players: {
-//      "socketId": { username: "Player1", team: "unassigned" | "A" | "B", score: 0 }
-//   },
+//   players: { ... },
 //   corePosition: 50,
-//   winner: null
+//   winner: null,
+//   settings: { targetWins: 3 },
+//   stats: { winsA: 0, winsB: 0, currentRound: 1 }
 // }
 const rooms = {};
 
@@ -41,7 +41,9 @@ io.on('connection', (socket) => {
             hostId: socket.id,
             players: {},
             corePosition: 50,
-            winner: null
+            winner: null,
+            settings: { targetWins: 3 },
+            stats: { winsA: 0, winsB: 0, currentRound: 1 }
         };
 
         // Host joins as Unassigned first
@@ -55,7 +57,6 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         socket.emit('room_created', { roomId, isHost: true });
 
-        // Immediate Update
         io.to(roomId).emit('lobby_update', getLobbyState(rooms[roomId]));
         console.log(`Room ${roomId} created by ${username}`);
     });
@@ -69,8 +70,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. Join Lobby (Enter Name & Pick Team)
-    // Now call join_lobby with team=null/unassigned initially
+    // 3. Join Lobby
     socket.on('join_lobby', ({ roomId, username, team }) => {
         const room = rooms[roomId];
         if (!room) return;
@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
 
         const targetTeam = team || 'unassigned';
 
-        // Check Team Cap (10) - Only if joining a specific team
+        // Check Team Cap (10)
         if (targetTeam !== 'unassigned') {
             const teamCount = Object.values(room.players).filter(p => p.team === targetTeam).length;
             if (teamCount >= 10) {
@@ -91,7 +91,7 @@ io.on('connection', (socket) => {
             }
         }
 
-        // Register/Update Player
+        // Register Player
         room.players[socket.id] = {
             id: socket.id,
             username: username || `Soldier-${socket.id.substr(0, 4)}`,
@@ -100,9 +100,32 @@ io.on('connection', (socket) => {
         };
 
         socket.join(roomId);
-
-        // Broadcast Lobby State to everyone
         io.to(roomId).emit('lobby_update', getLobbyState(room));
+    });
+
+    // --- ADMIN CONTROLS ---
+
+    // Host moves a player
+    socket.on('admin_move_player', ({ roomId, targetId, team }) => {
+        const room = rooms[roomId];
+        if (!room || socket.id !== room.hostId) return; // Host only
+
+        const targetPlayer = room.players[targetId];
+        if (targetPlayer) {
+            targetPlayer.team = team;
+            io.to(roomId).emit('lobby_update', getLobbyState(room));
+        }
+    });
+
+    // Host updates settings
+    socket.on('update_settings', ({ roomId, targetWins }) => {
+        const room = rooms[roomId];
+        if (!room || socket.id !== room.hostId) return;
+
+        if (targetWins > 0) {
+            room.settings.targetWins = targetWins;
+            io.to(roomId).emit('lobby_update', getLobbyState(room));
+        }
     });
 
     // 4. Start Game (Host Only)
@@ -111,7 +134,6 @@ io.on('connection', (socket) => {
         if (!room) return;
         if (socket.id !== room.hostId) return;
 
-        // Check availability
         const players = Object.values(room.players);
         const countA = players.filter(p => p.team === 'A').length;
         const countB = players.filter(p => p.team === 'B').length;
@@ -121,57 +143,45 @@ io.on('connection', (socket) => {
             return;
         }
 
-        room.status = 'PLAYING';
-        room.corePosition = 50;
-        // Reset scores
-        Object.values(room.players).forEach(p => p.score = 0);
-
-        io.to(roomId).emit('game_started');
-        console.log(`Game started in Room ${roomId}`);
+        startRound(room);
     });
 
-    // 5. Game Action (Click Spam)
-    // Client sends: { roomId, clicks: 5 } (batched)
+    // 5. Game Action
     socket.on('click_action', ({ roomId, clicks }) => {
         const room = rooms[roomId];
         if (!room || room.status !== 'PLAYING') return;
 
         const player = room.players[socket.id];
-        // Only assigned players can play
         if (!player || player.team === 'unassigned') return;
 
         player.score += clicks;
 
-        // Apply Logic
-        // Team A (Cyan) pulls LEFT (-), Team B (Magenta) pulls RIGHT (+)
         const direction = (player.team === 'A') ? -1 : 1;
         const impact = (clicks * 0.2);
 
         room.corePosition += (impact * direction);
 
-        // Clamp
         if (room.corePosition < 0) room.corePosition = 0;
         if (room.corePosition > 100) room.corePosition = 100;
 
-        // Broadcast State
         io.to(roomId).emit('game_update', {
             corePosition: room.corePosition,
             activePower: clicks * 10
         });
 
         // Win Condition
-        if (room.corePosition <= 0 || room.corePosition >= 100) {
-            endGame(room);
+        if (room.corePosition <= 0) {
+            handleRoundEnd(room, 'A');
+        } else if (room.corePosition >= 100) {
+            handleRoundEnd(room, 'B');
         }
     });
 
     socket.on('disconnect', () => {
-        // Find room
         for (const rId in rooms) {
             const room = rooms[rId];
             if (room.players[socket.id]) {
                 delete room.players[socket.id];
-
                 if (room.status === 'LOBBY') {
                     io.to(rId).emit('lobby_update', getLobbyState(room));
                 }
@@ -186,21 +196,71 @@ function getLobbyState(room) {
     return {
         unassigned: players.filter(p => p.team === 'unassigned'),
         teamA: players.filter(p => p.team === 'A'),
-        teamB: players.filter(p => p.team === 'B')
+        teamB: players.filter(p => p.team === 'B'),
+        settings: room.settings,
+        stats: room.stats
     };
 }
 
-function endGame(room) {
-    room.status = 'ENDED';
-    const winner = room.corePosition <= 0 ? 'A' : 'B';
+function startRound(room) {
+    room.status = 'PLAYING';
+    room.corePosition = 50;
 
-    // Generate Leaderboard
+    // Do NOT reset accumulated scores if tracking MVP across match?
+    // User probably wants Round Score vs Match Score.
+    // For MVP simplicity, let's keep accumulating score across rounds.
+    // Or reset? Usually "Round" implies fresh start.
+    // Let's reset scores specifically for the round to make it fair?
+    // Detailed plan didn't specify. Assuming "Match Leaderboard" -> Accumulate.
+    // BUT "MVP" on game over screen implies visual feedback.
+
+    // Let's keep score accumulating for "Match" leaderboard.
+
+    io.to(room.id).emit('game_started', {
+        stats: room.stats,
+        settings: room.settings
+    });
+    console.log(`Round ${room.stats.currentRound} started in Room ${room.id}`);
+}
+
+function handleRoundEnd(room, winnerTeam) {
+    room.status = 'ROUND_OVER';
+
+    if (winnerTeam === 'A') room.stats.winsA++;
+    else room.stats.winsB++;
+
+    // Check Match Win
+    if (room.stats.winsA >= room.settings.targetWins || room.stats.winsB >= room.settings.targetWins) {
+        endMatch(room, winnerTeam);
+    } else {
+        // Just Round Over
+        io.to(room.id).emit('round_over', {
+            winner: winnerTeam,
+            stats: room.stats
+        });
+
+        // Auto-start next round after delay
+        setTimeout(() => {
+            if (room.status === 'ROUND_OVER') { // Check if not disconnected/interrupted
+                room.stats.currentRound++;
+                startRound(room);
+            }
+        }, 3000);
+    }
+}
+
+function endMatch(room, finalWinner) {
+    room.status = 'ENDED';
     const sortedPlayers = Object.values(room.players).sort((a, b) => b.score - a.score);
 
     io.to(room.id).emit('game_over', {
-        winner: winner,
-        leaderboard: sortedPlayers
+        winner: finalWinner,
+        leaderboard: sortedPlayers,
+        stats: room.stats
     });
+
+    // Reset stats for next match if they stay in room?
+    // For now, they must recreate/reload to reset fully.
 }
 
 const PORT = process.env.PORT || 3000;

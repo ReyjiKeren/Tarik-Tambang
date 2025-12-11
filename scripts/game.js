@@ -32,11 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const codeInput = document.getElementById('code-input');
     const displayCode = document.getElementById('code-display');
 
+    // Lobby UI
     const listUnassigned = document.getElementById('list-unassigned');
     const controlsUnassigned = document.getElementById('controls-unassigned');
     const btnJoinA = document.getElementById('btn-join-a');
     const btnJoinB = document.getElementById('btn-join-b');
-
     const listA = document.getElementById('list-team-a');
     const listB = document.getElementById('list-team-b');
     const lobbyStatus = document.getElementById('lobby-status');
@@ -44,12 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const msgWait = document.getElementById('msg-waiting-host');
     const lobbyRoomId = document.getElementById('lobby-room-id');
 
-    // Leaderboard
-    const leaderboardBody = document.getElementById('leaderboard-body');
+    // Stats UI
+    const winsAEl = document.getElementById('wins-a');
+    const winsBEl = document.getElementById('wins-b');
+    const roundNumEl = document.getElementById('round-num');
+    const targetWinsDisplay = document.getElementById('target-wins-display');
+    const hostSettings = document.getElementById('host-settings');
+    const inputTargetWins = document.getElementById('input-target-wins');
+    const btnUpdateSettings = document.getElementById('btn-update-settings');
 
     // HUD
-    const p1ScoreEl = document.getElementById('p1-score');
-    const p2ScoreEl = document.getElementById('p2-score');
     const chargeBar = document.getElementById('charge-bar');
 
 
@@ -126,12 +130,41 @@ document.addEventListener('DOMContentLoaded', () => {
     btnConnectRoom.onclick = () => {
         const id = codeInput.value;
         if (id.length === 4) {
-            // Check room first? Or just join lobby directly?
-            // Let's join lobby directly with team=null
             net.joinLobby(id, state.username, null); // null = unassigned
         } else {
             showToast("Invalid ID");
         }
+    };
+
+    // --- LOBBY UPDATE & ADMIN CONTROLS ---
+
+    // Admin: Move Player Helper
+    window.movePlayer = (targetId, team) => {
+        if (state.role !== 'host') return;
+        net.socket.emit('admin_move_player', {
+            roomId: net.roomId,
+            targetId: targetId,
+            team: team
+        });
+    };
+
+    // Admin: Render Player Item with Controls
+    const renderPlayerItem = (p) => {
+        let controls = '';
+        if (state.role === 'host' && p.id !== net.socket.id) { // Don't move self via UI easily or redundant
+            // Arrows to move
+            const toUn = `<button onclick="movePlayer('${p.id}', 'unassigned')" style="background:none; border:none; color:#666; cursor:pointer;">⬆️</button>`;
+            const toA = `<button onclick="movePlayer('${p.id}', 'A')" style="background:none; border:none; color:cyan; cursor:pointer;">⬅️</button>`;
+            const toB = `<button onclick="movePlayer('${p.id}', 'B')" style="background:none; border:none; color:magenta; cursor:pointer;">➡️</button>`;
+
+            if (p.team === 'unassigned') controls = `${toA} ${toB}`;
+            else if (p.team === 'A') controls = `${toUn} ${toB}`;
+            else if (p.team === 'B') controls = `${toA} ${toUn}`;
+        }
+        return `<div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>${p.username}</span>
+                    <span>${controls}</span>
+                </div>`;
     };
 
     net.onLobbyUpdate = (data) => {
@@ -142,17 +175,30 @@ document.addEventListener('DOMContentLoaded', () => {
             lobbyRoomId.innerText = `ROOM: ${net.roomId}`;
         }
 
+        // Stats Update
+        if (data.stats) {
+            winsAEl.innerText = data.stats.winsA;
+            winsBEl.innerText = data.stats.winsB;
+            roundNumEl.innerText = data.stats.currentRound;
+        }
+        if (data.settings) {
+            targetWinsDisplay.innerText = data.settings.targetWins;
+            if (state.role !== 'host') {
+                // Sync input if not host (not visible but good for state)
+                inputTargetWins.value = data.settings.targetWins;
+            }
+        }
+
         // Render Lists
         listUnassigned.innerHTML = data.unassigned.length ?
-            data.unassigned.map(p => `<div>${p.username}</div>`).join('') :
+            data.unassigned.map(p => renderPlayerItem(p)).join('') :
             '<span style="color: #666">- Empty -</span>';
 
-        listA.innerHTML = data.teamA.map(p => `<li>${p.username}</li>`).join('');
-        listB.innerHTML = data.teamB.map(p => `<li>${p.username}</li>`).join('');
+        listA.innerHTML = data.teamA.map(p => `<li>${renderPlayerItem(p)}</li>`).join('');
+        listB.innerHTML = data.teamB.map(p => `<li>${renderPlayerItem(p)}</li>`).join('');
 
-        // Find myself (Using Socket ID for consistency)
+        // Find myself
         const myId = net.socket ? net.socket.id : null;
-        // Check if ID is in team A or B
         const amICyan = data.teamA.some(p => p.id === myId);
         const amIMagenta = data.teamB.some(p => p.id === myId);
 
@@ -162,25 +208,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         controlsUnassigned.classList.remove('hidden');
 
-        // Provide Status
+        // Status
         const total = data.unassigned.length + data.teamA.length + data.teamB.length;
         lobbyStatus.innerText = `${total} AGENTS CONNECTED`;
 
         if (state.role === 'host') {
             btnStart.classList.remove('hidden');
             msgWait.classList.add('hidden');
+            hostSettings.classList.remove('hidden');
         } else {
             btnStart.classList.add('hidden');
             msgWait.classList.remove('hidden');
+            hostSettings.classList.add('hidden');
         }
     };
 
-    // Team Switching
+    // Host Settings Update
+    btnUpdateSettings.onclick = () => {
+        const val = parseInt(inputTargetWins.value);
+        if (val > 0) {
+            net.socket.emit('update_settings', {
+                roomId: net.roomId,
+                targetWins: val
+            });
+            showToast("Settings Updated Settings!");
+        }
+    };
+
+    // Team Switching (Self)
     btnJoinA.onclick = () => net.joinLobby(net.roomId, state.username, 'A');
     btnJoinB.onclick = () => net.joinLobby(net.roomId, state.username, 'B');
 
     btnStart.onclick = () => {
-        // Validation handled by server
         net.startGame();
     };
 
@@ -189,16 +248,20 @@ document.addEventListener('DOMContentLoaded', () => {
     net.onGameUpdate = (data) => {
         state.corePosition = data.corePosition;
         if (data.activePower > 0) {
-            // Visual flair for activity
             if (Math.random() > 0.7) renderer.spawnParticles(renderer.cw / 2, renderer.ch / 2, 2);
         }
     };
 
     // --- 3. Game Start ---
-    net.onGameStarted = () => {
+    net.onGameStarted = (data) => {
         mainModal.classList.add('hidden');
         state.gameActive = true;
         showToast("MISSION START! TAP FAST!", "success");
+
+        if (data && data.stats) {
+            document.getElementById('p1-score').innerText = `CYAN: ${data.stats.winsA}`;
+            document.getElementById('p2-score').innerText = `MAGENTA: ${data.stats.winsB}`;
+        }
 
         if (state.myTeam === 'unassigned') {
             showToast("WARNING: You are Spectating (No Team)", "error");
@@ -208,7 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 4. Game Input (Click Spam) ---
     const control = document.getElementById('control-layer');
 
-    // Timer for sending clicks
     setInterval(() => {
         if (state.pendingClicks > 0 && state.gameActive && state.myTeam !== 'unassigned') {
             net.sendClickSpam(state.pendingClicks);
@@ -233,6 +295,19 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => chargeBar.style.width = '0%', 50);
 
         renderer.shake(2);
+
+        // Ripple Effect
+        let x, y;
+        if (e.type === 'touchstart') {
+            x = e.touches[0].clientX;
+            y = e.touches[0].clientY;
+        } else {
+            x = e.clientX;
+            y = e.clientY;
+        }
+
+        const color = (state.myTeam === 'A') ? 'rgba(0, 243, 255, 1)' : 'rgba(255, 0, 255, 1)';
+        renderer.spawnRipple(x, y, color);
     }
 
     control.addEventListener('mousedown', handleTap);
@@ -252,22 +327,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     requestAnimationFrame(loop);
 
-    // --- 6. End Game (Leaderboard) ---
-    // --- 6. End Game (Leaderboard) ---
-    // --- 6. End Game (Leaderboard) ---
-    net.onGameOver = (data) => {
-        console.log("Game Over Data:", data); // Debug log
+    // --- 6. Round Over ---
+    net.socket.on('round_over', (data) => {
+        state.gameActive = false;
+        const msg = data.winner === 'A' ? "CYAN WINS ROUND!" : "MAGENTA WINS ROUND!";
+        const color = data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)";
 
+        // Simple Overlay for Round End
+        const roundToast = document.createElement('div');
+        roundToast.style.position = 'fixed';
+        roundToast.style.top = '40%';
+        roundToast.style.left = '50%';
+        roundToast.style.transform = 'translate(-50%, -50%)';
+        roundToast.style.fontSize = '3rem';
+        roundToast.style.fontWeight = 'bold';
+        roundToast.style.color = color;
+        roundToast.style.textShadow = `0 0 20px ${color}`;
+        roundToast.style.zIndex = '999';
+        roundToast.style.background = 'rgba(0,0,0,0.8)';
+        roundToast.style.padding = '20px 40px';
+        roundToast.style.border = `2px solid ${color}`;
+        roundToast.innerText = msg;
+        document.body.appendChild(roundToast);
+
+        setTimeout(() => {
+            roundToast.remove();
+        }, 2500); // Remove before next round starts
+    });
+
+    // --- 7. Match Over (Leaderboard) ---
+    net.onGameOver = (data) => {
         state.gameActive = false;
         mainModal.classList.add('hidden'); // Ensure hidden
         resultModal.classList.remove('hidden');
 
         document.getElementById('result-title').innerText =
-            (data.winner === 'A' ? "CYAN WINS" : "MAGENTA WINS");
+            (data.winner === 'A' ? "CYAN VICTORIOUS" : "MAGENTA VICTORIOUS");
         document.getElementById('result-title').style.color =
             (data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)");
 
-        // Find MVP (Highest Score)
+        // Find MVP 
         let mvpId = null;
         let maxScore = -1;
         if (data.leaderboard && data.leaderboard.length > 0) {
@@ -279,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Split Teams
+        // Split Teams (Score accumulation ?)
         const teamA = data.leaderboard.filter(p => p.team === 'A').sort((a, b) => b.score - a.score);
         const teamB = data.leaderboard.filter(p => p.team === 'B').sort((a, b) => b.score - a.score);
 
