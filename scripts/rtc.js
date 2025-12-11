@@ -82,7 +82,10 @@ class NetworkManager {
     }
 
     startGame() {
-        if (!this.roomId) return;
+        if (!this.roomId) {
+            console.error("No Room ID set in NetworkManager");
+            return;
+        }
         this.socket.emit('start_game', this.roomId);
     }
 

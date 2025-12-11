@@ -131,7 +131,10 @@ io.on('connection', (socket) => {
     // 4. Start Game (Host Only)
     socket.on('start_game', (roomId) => {
         const room = rooms[roomId];
-        if (!room) return;
+        if (!room) {
+            socket.emit('error_msg', "CRITICAL: Room connection lost (Server Restarted). Please refresh and create a new room.");
+            return;
+        }
         // if (socket.id !== room.hostId) {
         //     socket.emit('error_msg', "ACCESS DENIED: Only HQ (Host) can start mission!");
         //     return;
