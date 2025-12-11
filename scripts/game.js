@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostSettings = document.getElementById('host-settings');
     const inputTargetWins = document.getElementById('input-target-wins');
     const btnUpdateSettings = document.getElementById('btn-update-settings');
-
     // HUD
     const chargeBar = document.getElementById('charge-bar');
 
@@ -66,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.style.padding = '10px 20px';
         toast.style.marginBottom = '10px';
         toast.style.color = '#fff';
+
         toast.style.borderRadius = '5px';
         toast.innerText = msg;
         toastContainer.appendChild(toast);
@@ -254,19 +254,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. Game Start ---
     net.onGameStarted = (data) => {
-        mainModal.classList.add('hidden');
-        state.gameActive = true;
-        showToast("MISSION START! TAP FAST!", "success");
+        // Clear any existing prompts
+        const existingToast = document.querySelector('.round-toast');
+        if (existingToast) existingToast.remove();
 
-        if (data && data.stats) {
-            document.getElementById('p1-score').innerText = `CYAN: ${data.stats.winsA}`;
-            document.getElementById('p2-score').innerText = `MAGENTA: ${data.stats.winsB}`;
-        }
-
-        if (state.myTeam === 'unassigned') {
-            showToast("WARNING: You are Spectating (No Team)", "error");
-        }
     };
+
 
     // --- 4. Game Input (Click Spam) ---
     const control = document.getElementById('control-layer');
@@ -330,29 +323,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Round Over ---
     net.onRoundOver = (data) => {
         state.gameActive = false;
-        const msg = data.winner === 'A' ? "CYAN WINS ROUND!" : "MAGENTA WINS ROUND!";
+        const msg = data.winner === 'A' ? "TEAM A WINS ROUND!" : "TEAM B WINS ROUND!";
         const color = data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)";
 
         // Simple Overlay for Round End
         const roundToast = document.createElement('div');
+        roundToast.classList.add('round-toast');
         roundToast.style.position = 'fixed';
         roundToast.style.top = '40%';
         roundToast.style.left = '50%';
         roundToast.style.transform = 'translate(-50%, -50%)';
-        roundToast.style.fontSize = '3rem';
-        roundToast.style.fontWeight = 'bold';
-        roundToast.style.color = color;
-        roundToast.style.textShadow = `0 0 20px ${color}`;
         roundToast.style.zIndex = '999';
-        roundToast.style.background = 'rgba(0,0,0,0.8)';
-        roundToast.style.padding = '20px 40px';
-        roundToast.style.border = `2px solid ${color}`;
-        roundToast.innerText = msg;
+        roundToast.style.textAlign = 'center';
+
+        // Main Message
+        const msgEl = document.createElement('div');
+        msgEl.style.fontSize = '3rem';
+        msgEl.style.fontWeight = 'bold';
+        msgEl.style.color = color;
+        msgEl.style.textShadow = `0 0 20px ${color}`;
+        msgEl.style.background = 'rgba(0,0,0,0.8)';
+        msgEl.style.padding = '20px 40px';
+        msgEl.style.border = `2px solid ${color}`;
+        msgEl.innerText = msg;
+
+        // Cooldown Timer
+        const timeEl = document.createElement('div');
+        timeEl.style.fontSize = '1.5rem';
+        timeEl.style.color = '#fff';
+        timeEl.style.marginTop = '10px';
+        timeEl.innerText = `Next Round in ${data.cooldown || 5}...`;
+
+        roundToast.appendChild(msgEl);
+        roundToast.appendChild(timeEl);
         document.body.appendChild(roundToast);
 
-        setTimeout(() => {
-            roundToast.remove();
-        }, 2500); // Remove before next round starts
+        let timeLeft = data.cooldown || 5;
+        const timer = setInterval(() => {
+            timeLeft--;
+            if (timeLeft > 0) {
+                timeEl.innerText = `Next Round in ${timeLeft}...`;
+            } else {
+                clearInterval(timer);
+                roundToast.remove();
+            }
+        }, 1000);
     };
 
     // --- 7. Match Over (Leaderboard) ---
@@ -362,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultModal.classList.remove('hidden');
 
         document.getElementById('result-title').innerText =
-            (data.winner === 'A' ? "CYAN VICTORIOUS" : "MAGENTA VICTORIOUS");
+            (data.winner === 'A' ? "TEAM A VICTORIOUS" : "TEAM B VICTORIOUS");
         document.getElementById('result-title').style.color =
             (data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)");
 

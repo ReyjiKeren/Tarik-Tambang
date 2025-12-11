@@ -234,9 +234,11 @@ function handleRoundEnd(room, winnerTeam) {
         endMatch(room, winnerTeam);
     } else {
         // Just Round Over
+        const cooldown = 5; // Seconds
         io.to(room.id).emit('round_over', {
             winner: winnerTeam,
-            stats: room.stats
+            stats: room.stats,
+            cooldown: cooldown
         });
 
         // Auto-start next round after delay
@@ -245,7 +247,7 @@ function handleRoundEnd(room, winnerTeam) {
                 room.stats.currentRound++;
                 startRound(room);
             }
-        }, 3000);
+        }, cooldown * 1000);
     }
 }
 
