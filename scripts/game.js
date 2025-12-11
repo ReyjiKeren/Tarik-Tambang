@@ -240,6 +240,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnJoinB.onclick = () => net.joinLobby(net.roomId, state.username, 'B');
 
     btnStart.onclick = () => {
+        console.log("Start Button Clicked. RoomID:", net.roomId);
+        showToast("Initiating Launch Sequence...", "info");
         net.startGame();
     };
 
