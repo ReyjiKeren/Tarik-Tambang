@@ -140,23 +140,23 @@
 
         <!-- Step 0: Username Login -->
         <div id="step-login">
-            <p style="color: #aaa; margin-bottom: 10px;">Enter Agent Name:</p>
-            <input type="text" id="username-input" placeholder="Codename"
+            <p style="color: #aaa; margin-bottom: 10px;">Masukkan Nama Agen:</p>
+            <input type="text" id="username-input" placeholder="Nama Sandi"
                 style="background: transparent; border: 1px solid var(--neon-cyan); padding: 0.8rem; color: #fff; width: 100%; font-size: 1.2rem; text-align: center; margin-bottom: 1rem;">
             <button id="btn-login" class="btn-main">INITIALIZE</button>
         </div>
 
         <!-- Step 1: Host/Join (Short ID) -->
         <div id="step-connect" class="hidden">
-            <p id="modal-desc" style="margin-bottom: 1rem; color: #aaa;">Mission Control</p>
+            <p id="modal-desc" style="margin-bottom: 1rem; color: #aaa;">Pusat Komando</p>
 
             <!-- Host View -->
             <div id="code-display" class="copy-box hidden">????</div>
 
             <!-- Client View -->
-            <input type="number" id="code-input" class="hidden" placeholder="Enter Room ID"
+            <input type="number" id="code-input" class="hidden" placeholder="Masukkan ID Room"
                 style="background: transparent; border: 1px solid var(--neon-cyan); padding: 1rem; color: #fff; width: 100%; font-size: 1.5rem; text-align: center; margin-bottom: 1rem;">
-            <button id="btn-connect-room" class="btn-main hidden">Connect</button>
+            <button id="btn-connect-room" class="btn-main hidden">Hubungkan</button>
         </div>
 
         <!-- Step 2: Lobby (3 Sections) -->
@@ -164,11 +164,11 @@
             <!-- Match Info (Wins & Round) -->
             <div id="match-info"
                 style="text-align: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
-                <span style="color: var(--neon-cyan)">TEAM A <span id="wins-a">0</span></span>
+                <span style="color: var(--neon-cyan)">TIM A <span id="wins-a">0</span></span>
                 -
-                <span style="color: var(--neon-magenta)"><span id="wins-b">0</span> TEAM B</span>
+                <span style="color: var(--neon-magenta)"><span id="wins-b">0</span> TIM B</span>
                 <br>
-                <span style="color: #aaa; font-size: 0.8rem;">ROUND <span id="round-num">1</span> (First to <span
+                <span style="color: #aaa; font-size: 0.8rem;">RONDE <span id="round-num">1</span> (Target Menang: <span
                         id="target-wins-display">3</span>)</span>
             </div>
 
@@ -182,24 +182,24 @@
                     style="padding: 2px 10px; font-size: 0.7rem; display: inline-block; width: auto;">Set</button>
             </div>
 
-            <p style="text-align: center; color: #fff;">LOBBY STATUS: <span id="lobby-status"
-                    style="color: var(--neon-cyan)">WAITING</span></p>
+            <p style="text-align: center; color: #fff;">STATUS LOBI: <span id="lobby-status"
+                    style="color: var(--neon-cyan)">MENUNGGU</span></p>
 
             <!-- Unassigned Pool (Center Top) -->
             <div id="lobby-unassigned"
                 style="text-align: center; margin-bottom: 20px; border: 1px dashed #444; padding: 10px;">
-                <h4 style="color: #aaa; margin-bottom: 5px;">UNASSIGNED AGENTS</h4>
+                <h4 style="color: #aaa; margin-bottom: 5px;">AGEN TANPA TIM</h4>
                 <div id="list-unassigned" style="color: #fff; font-size: 0.9rem; min-height: 30px;">Checking...</div>
 
                 <!-- Buttons to Switch (Only visible if I am unassigned) -->
                 <div id="controls-unassigned" class="hidden"
                     style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
                     <button id="btn-join-a" class="btn-main"
-                        style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 5px 10px; font-size: 0.8rem;">JOIN
-                        TEAM A</button>
+                        style="border-color: var(--neon-cyan); color: var(--neon-cyan); padding: 5px 10px; font-size: 0.8rem;">GABUNG
+                        TIM A</button>
                     <button id="btn-join-b" class="btn-main"
-                        style="border-color: var(--neon-magenta); color: var(--neon-magenta); padding: 5px 10px; font-size: 0.8rem;">JOIN
-                        TEAM B</button>
+                        style="border-color: var(--neon-magenta); color: var(--neon-magenta); padding: 5px 10px; font-size: 0.8rem;">GABUNG
+                        TIM B</button>
                 </div>
             </div>
 
@@ -207,7 +207,7 @@
                 <!-- Team A -->
                 <div style="width: 48%; background: rgba(0,255,255,0.05); padding: 10px;">
                     <h4 style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); text-align: center;">
-                        TEAM A</h4>
+                        TIM A</h4>
                     <ul id="list-team-a"
                         style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 150px; overflow-y: auto; text-align: center;">
                     </ul>
@@ -217,7 +217,7 @@
                 <div style="width: 48%; background: rgba(255,0,255,0.05); padding: 10px;">
                     <h4
                         style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta); text-align: center;">
-                        TEAM B</h4>
+                        TIM B</h4>
                     <ul id="list-team-b"
                         style="list-style: none; padding: 0; color: #ccc; font-size: 0.8rem; height: 150px; overflow-y: auto; text-align: center;">
                     </ul>
@@ -226,11 +226,11 @@
 
             <div style="margin-top: 20px; text-align: center;">
                 <button id="btn-start-game" class="btn-main hidden"
-                    style="width: 100%; background: rgba(0,255,255,0.2);">START MISSION</button>
+                    style="width: 100%; background: rgba(0,255,255,0.2);">MULAI MISI</button>
                 <p id="msg-waiting-host" class="hidden" style="font-size: 0.8rem; color: #666; margin-top: 10px;">
-                    Waiting for Host...</p>
+                    Menunggu Host...</p>
                 <h3 id="lobby-room-id"
-                    style="margin-top: 15px; color: #fff; letter-spacing: 5px; font-family: monospace;">ROOM: ????</h3>
+                    style="margin-top: 15px; color: #fff; letter-spacing: 5px; font-family: monospace;">RUANG: ????</h3>
             </div>
         </div>
 
@@ -243,7 +243,7 @@
 
     <!-- Result Modal (Leaderboard) -->
     <div id="result-modal" class="modal hidden" style="width: 95%; max-width: 700px;">
-        <h1 id="result-title" class="neon-text">VICTORY</h1>
+        <h1 id="result-title" class="neon-text">SELESAI</h1>
 
         <div
             style="display: flex; gap: 20px; justify-content: space-between; margin: 20px 0; max-height: 400px; overflow-y: auto;">
@@ -253,7 +253,7 @@
                 style="width: 48%; background: rgba(0,255,255,0.05); padding: 10px; border: 1px solid var(--neon-cyan);">
                 <h3
                     style="color: var(--neon-cyan); border-bottom: 1px solid var(--neon-cyan); text-align: center; margin-bottom: 10px;">
-                    TEAM A</h3>
+                    TIM A</h3>
                 <div id="stats-cyan" style="font-size: 0.9rem; min-height: 50px;"></div>
             </div>
 
@@ -262,13 +262,13 @@
                 style="width: 48%; background: rgba(255,0,255,0.05); padding: 10px; border: 1px solid var(--neon-magenta);">
                 <h3
                     style="color: var(--neon-magenta); border-bottom: 1px solid var(--neon-magenta); text-align: center; margin-bottom: 10px;">
-                    TEAM B</h3>
+                    TIM B</h3>
                 <div id="stats-magenta" style="font-size: 0.9rem; min-height: 50px;"></div>
             </div>
 
         </div>
 
-        <button onclick="location.href='index.html'" class="btn-main">Return to Orbit</button>
+        <button onclick="location.href='index.html'" class="btn-main">Kembali ke Menu</button>
     </div>
 
     <!-- Scripts -->

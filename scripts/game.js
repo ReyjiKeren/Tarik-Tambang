@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogin.onclick = () => {
         const name = nameInput.value.trim();
         if (!name) {
-            showToast("Enter Codename!");
+            showToast("Masukkan Nama Sandi!");
             return;
         }
         state.username = name;
@@ -94,13 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
         switchStep('step-connect');
 
         if (mode === 'host') {
-            document.getElementById('modal-title').innerText = "HQ COMMAND";
-            document.getElementById('modal-desc').innerText = "Creating Room...";
+            document.getElementById('modal-title').innerText = "PUSAT KOMANDO";
+            document.getElementById('modal-desc').innerText = "Membuat Room...";
             displayCode.classList.remove('hidden');
             net.init();
         } else {
-            document.getElementById('modal-title').innerText = "JOIN SQUAD";
-            document.getElementById('modal-desc').innerText = "Enter ID:";
+            document.getElementById('modal-title').innerText = "GABUNG SKUAD";
+            document.getElementById('modal-desc').innerText = "Masukkan ID:";
             codeInput.classList.remove('hidden');
             btnConnectRoom.classList.remove('hidden');
             net.init();
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id.length === 4) {
             net.joinLobby(id, state.username, null); // null = unassigned
         } else {
-            showToast("Invalid ID");
+            showToast("ID Tidak Valid");
         }
     };
 
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     net.onLobbyUpdate = (data) => {
         switchStep('step-lobby');
-        document.getElementById('modal-title').innerText = "LOBBY";
+        document.getElementById('modal-title').innerText = "LOBI";
 
         if (net.roomId) {
             lobbyRoomId.innerText = `ROOM: ${net.roomId}`;
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Lists
         listUnassigned.innerHTML = data.unassigned.length ?
             data.unassigned.map(p => renderPlayerItem(p)).join('') :
-            '<span style="color: #666">- Empty -</span>';
+            '<span style="color: #666">- Kosong -</span>';
 
         listA.innerHTML = data.teamA.map(p => `<li>${renderPlayerItem(p)}</li>`).join('');
         listB.innerHTML = data.teamB.map(p => `<li>${renderPlayerItem(p)}</li>`).join('');
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Status
         const total = data.unassigned.length + data.teamA.length + data.teamB.length;
-        lobbyStatus.innerText = `${total} AGENTS CONNECTED`;
+        lobbyStatus.innerText = `${total} AGEN TERHUBUNG`;
 
         if (state.role === 'host') {
             btnStart.classList.remove('hidden');
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 roomId: net.roomId,
                 targetWins: val
             });
-            showToast("Settings Updated Settings!");
+            showToast("Pengaturan Diperbarui!");
         }
     };
 
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnStart.onclick = () => {
         console.log("Start Button Clicked. RoomID:", net.roomId);
-        showToast("Initiating Launch Sequence...", "info");
+        showToast("Memulai Misi...", "info");
         net.startGame();
     };
 
@@ -263,16 +263,16 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("GAME STARTED EVENT RECEIVED", data);
         mainModal.classList.add('hidden');
         state.gameActive = true;
-        showToast("MISSION START! TAP FAST!", "success");
+        showToast("MISI DIMULAI! TAP CEPAT!", "success");
 
         if (data && data.stats) {
-            document.getElementById('p1-score').innerText = `TEAM A: ${data.stats.winsA}`;
-            document.getElementById('p2-score').innerText = `TEAM B: ${data.stats.winsB}`;
-            document.getElementById('round-display').innerText = `ROUND ${data.stats.currentRound}`;
+            document.getElementById('p1-score').innerText = `TIM A: ${data.stats.winsA}`;
+            document.getElementById('p2-score').innerText = `TIM B: ${data.stats.winsB}`;
+            document.getElementById('round-display').innerText = `RONDE ${data.stats.currentRound}`;
         }
 
         if (state.myTeam === 'unassigned') {
-            showToast("WARNING: You are Spectating (No Team)", "error");
+            showToast("PERINGATAN: Anda Menonton (Tanpa Tim)", "error");
         }
     };
 
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.gameActive) return;
 
         if (state.myTeam === 'unassigned') {
-            showToast("JOIN A TEAM TO PLAY!", "error");
+            showToast("GABUNG TIM DULU!", "error");
             return;
         }
 
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Round Over ---
     net.onRoundOver = (data) => {
         state.gameActive = false;
-        const msg = data.winner === 'A' ? "TEAM A WINS ROUND!" : "TEAM B WINS ROUND!";
+        const msg = data.winner === 'A' ? "TIM A MENANG RONDE!" : "TIM B MENANG RONDE!";
         const color = data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)";
 
         // Simple Overlay for Round End
@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timeEl.style.fontSize = '1.5rem';
         timeEl.style.color = '#fff';
         timeEl.style.marginTop = '10px';
-        timeEl.innerText = `Next Round in ${data.cooldown || 5}...`;
+        timeEl.innerText = `Ronde Berikutnya dalam ${data.cooldown || 5}...`;
 
         roundToast.appendChild(msgEl);
         roundToast.appendChild(timeEl);
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const timer = setInterval(() => {
             timeLeft--;
             if (timeLeft > 0) {
-                timeEl.innerText = `Next Round in ${timeLeft}...`;
+                timeEl.innerText = `Ronde Berikutnya dalam ${timeLeft}...`;
             } else {
                 clearInterval(timer);
                 roundToast.remove();
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultModal.classList.remove('hidden');
 
         document.getElementById('result-title').innerText =
-            (data.winner === 'A' ? "TEAM A VICTORIOUS" : "TEAM B VICTORIOUS");
+            (data.winner === 'A' ? "TIM A MENANG" : "TIM B MENANG");
         document.getElementById('result-title').style.color =
             (data.winner === 'A' ? "var(--neon-cyan)" : "var(--neon-magenta)");
 
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const teamB = data.leaderboard.filter(p => p.team === 'B').sort((a, b) => b.score - a.score);
 
         const renderList = (list) => {
-            if (!list || list.length === 0) return '<div style="color: #666; font-style: italic;">No Agents</div>';
+            if (!list || list.length === 0) return '<div style="color: #666; font-style: italic;">Tidak Ada Agen</div>';
 
             return list.map((p, i) => {
                 const isMVP = p.id === mvpId;

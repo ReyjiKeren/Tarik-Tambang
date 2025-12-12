@@ -121,7 +121,7 @@ class GameRenderer {
         // Text
         this.ctx.fillStyle = 'rgba(0, 243, 255, 0.5)';
         this.ctx.font = '20px Orbitron';
-        this.ctx.fillText("TEAM A GOAL", xLeft - 60, this.ch / 2);
+        this.ctx.fillText("GOAL TIM A", xLeft - 60, this.ch / 2);
         this.ctx.restore();
 
         // Right Goal (Magenta Win)
@@ -137,7 +137,7 @@ class GameRenderer {
 
         this.ctx.fillStyle = 'rgba(255, 0, 255, 0.5)';
         this.ctx.font = '20px Orbitron';
-        this.ctx.fillText("TEAM B GOAL", xRight + 10, this.ch / 2);
+        this.ctx.fillText("GOAL TIM B", xRight + 10, this.ch / 2);
         this.ctx.restore();
     }
 

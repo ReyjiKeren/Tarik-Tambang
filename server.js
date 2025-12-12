@@ -132,11 +132,11 @@ io.on('connection', (socket) => {
     socket.on('start_game', (roomId) => {
         const room = rooms[roomId];
         if (!room) {
-            socket.emit('error_msg', "CRITICAL: Room connection lost (Server Restarted). Please refresh and create a new room.");
+            socket.emit('error_msg', "KRITIS: Koneksi ruangan terputus (Server Restart). Silakan refresh dan buat room baru.");
             return;
         }
         // if (socket.id !== room.hostId) {
-        //     socket.emit('error_msg', "ACCESS DENIED: Only HQ (Host) can start mission!");
+        //     socket.emit('error_msg', "AKSES DITOLAK: Hanya Komandan (Host) yang bisa memulai misi!");
         //     return;
         // }
 
@@ -145,7 +145,7 @@ io.on('connection', (socket) => {
         const countB = players.filter(p => p.team === 'B').length;
 
         if (countA === 0 || countB === 0) {
-            socket.emit('error_msg', "Need players in both teams!");
+            socket.emit('error_msg', "Butuh agen di kedua tim!");
             return;
         }
 
