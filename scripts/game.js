@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (state.myTeam === 'unassigned') {
-            showToast("PERINGATAN: Anda Menonton (Tanpa Tim)", "error");
+            showToast("INFO: Anda dalam Mode Penonton", "info");
         }
     };
 
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.gameActive) return;
 
         if (state.myTeam === 'unassigned') {
-            showToast("GABUNG TIM DULU!", "error");
+            showToast("ANDA PENONTON!", "error");
             return;
         }
 
