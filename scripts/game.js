@@ -1,5 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Setup
+    const overlay = document.getElementById('page-overlay');
+    // Fade IN on load
+    setTimeout(() => {
+        if (overlay) {
+            overlay.classList.add('fade-out');
+            setTimeout(() => overlay.style.display = 'none', 500);
+        }
+    }, 100);
+
     const renderer = new GameRenderer('game-canvas');
     const net = window.Network;
     const clickBatchInterval = 200; // Send clicks every 200ms
@@ -73,8 +82,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchStep(stepId) {
-        [stepLogin, stepConnect, stepLobby].forEach(el => el.classList.add('hidden'));
-        document.getElementById(stepId).classList.remove('hidden');
+        // Fade Out current
+        [stepLogin, stepConnect, stepLobby].forEach(el => {
+            if (!el.classList.contains('hidden')) {
+                el.classList.add('fade-out');
+                setTimeout(() => el.classList.add('hidden'), 300); // Wait for anim
+            }
+        });
+
+        // Fade In new
+        setTimeout(() => {
+            const target = document.getElementById(stepId);
+            target.classList.remove('hidden', 'fade-out');
+            target.classList.add('fade-in');
+        }, 300);
     }
 
     // --- 1. Login Logic ---
@@ -391,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.gameActive = false;
         mainModal.classList.add('hidden'); // Ensure hidden
         resultModal.classList.remove('hidden');
+        resultModal.classList.add('modal-pop'); // Animation
 
         document.getElementById('result-title').innerText =
             (data.winner === 'A' ? "TIM A MENANG" : "TIM B MENANG");

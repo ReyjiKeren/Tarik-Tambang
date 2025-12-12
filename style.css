@@ -8,21 +8,25 @@
   --neon-blue: #0051ff;
   --bg-dark: #050510;
   --bg-panel: rgba(10, 10, 30, 0.85);
-  
+
   /* Glow Effects */
   --glow-cyan: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
   --glow-magenta: 0 0 10px var(--neon-magenta), 0 0 20px var(--neon-magenta);
   --glow-text: 0 0 5px rgba(255, 255, 255, 0.8);
 
   /* Fonts */
-  --font-main: 'Rajdhani', sans-serif; /* Tech feel */
-  --font-display: 'Orbitron', sans-serif; /* Headers */
-  
+  --font-main: 'Rajdhani', sans-serif;
+  /* Tech feel */
+  --font-display: 'Orbitron', sans-serif;
+  /* Headers */
+
   /* Dimensions */
   --header-height: clamp(60px, 10vh, 100px);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -42,8 +46,11 @@ body {
 /* Background Grid Effect */
 .bg-grid {
   position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-image: 
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
     linear-gradient(var(--bg-panel) 1px, transparent 1px),
     linear-gradient(90deg, var(--bg-panel) 1px, transparent 1px);
   background-size: 50px 50px;
@@ -55,9 +62,17 @@ body {
 }
 
 @keyframes gridFloat {
-  0% { transform: scale(1.2) translateY(0); }
-  50% { transform: scale(1.2) translateY(20px); }
-  100% { transform: scale(1.2) translateY(0); }
+  0% {
+    transform: scale(1.2) translateY(0);
+  }
+
+  50% {
+    transform: scale(1.2) translateY(20px);
+  }
+
+  100% {
+    transform: scale(1.2) translateY(0);
+  }
 }
 
 /* UI Utilities */
@@ -94,9 +109,11 @@ body {
 .btn-main::before {
   content: '';
   position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transition: 0.5s;
 }
 
@@ -125,4 +142,94 @@ h1 {
   font-size: clamp(2rem, 5vw, 4rem);
   margin-bottom: 2rem;
   letter-spacing: 2px;
+}
+
+/* --- TRANSITIONS & ANIMATIONS --- */
+
+/* Full Screen Transition Overlay */
+.fade-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 9999;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 0.5s ease-out;
+}
+
+.fade-overlay.fade-out {
+  opacity: 0;
+}
+
+/* Generic Fade In/Out for Elements */
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.fade-out {
+  animation: fadeOut 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Modal Pop Up */
+.modal-pop {
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translate(-50%, -50%);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translate(-50%, -50%);
+  }
+}
+
+/* Note: translate(-50%, -50%) needed if centering uses specific transform, 
+   but let's make it generic scale mostly. 
+   If the modal is already centered vs margin, this might conflict.
+   Let's check result-modal usage. It uses margin 20px auto in some contexts?
+   Wait, game.html says <div id="result-modal" class="modal hidden"> and no inline transform.
+   The .modal class usually has fixed position? Checking style.css again might be needed 
+   but I'll add generic scale keyframe.
+*/
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

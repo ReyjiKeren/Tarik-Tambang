@@ -12,22 +12,37 @@ document.addEventListener('DOMContentLoaded', () => {
         // console.log(`Playing sound: ${type}`);
     };
 
+    // --- Animation Handling ---
+    const overlay = document.getElementById('page-overlay');
+
+    // Fade IN on load
+    setTimeout(() => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.style.display = 'none', 500);
+    }, 100);
+
+    const navigateTo = (url) => {
+        overlay.style.display = 'block';
+        // Force reflow
+        void overlay.offsetWidth;
+        overlay.classList.remove('fade-out');
+
+        setTimeout(() => {
+            window.location.href = url;
+        }, 500);
+    };
+
     btnPlay.addEventListener('click', () => {
         playSound('click');
-        // Host Mode
-        window.location.href = 'game.html?mode=host';
+        navigateTo('game.html?mode=host');
     });
 
     btnJoin.addEventListener('click', () => {
         playSound('click');
-        // Show Join Modal if we were doing the connection here, 
-        // but our design says we do connection on game.html.
-        // However, standard flow implies "Join" takes you to a place to enter code.
-        // Let's redirect to game.html?mode=join and handle UI there.
-        window.location.href = 'game.html?mode=join';
+        navigateTo('game.html?mode=join');
     });
 
     btnHowto.addEventListener('click', () => {
-        window.location.href = 'tutorial.html';
+        navigateTo('tutorial.html');
     });
 });
