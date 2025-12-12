@@ -145,7 +145,7 @@ io.on('connection', (socket) => {
         const countB = players.filter(p => p.team === 'B').length;
 
         if (countA === 0 || countB === 0) {
-            socket.emit('error_msg', "Butuh agen di kedua tim!");
+            socket.emit('error_msg', "Butuh pemain di kedua tim!");
             return;
         }
 

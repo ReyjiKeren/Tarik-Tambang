@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Status
         const total = data.unassigned.length + data.teamA.length + data.teamB.length;
-        lobbyStatus.innerText = `${total} AGEN TERHUBUNG`;
+        lobbyStatus.innerText = `${total} PEMAIN TERHUBUNG`;
 
         if (state.role === 'host') {
             btnStart.classList.remove('hidden');
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const teamB = data.leaderboard.filter(p => p.team === 'B').sort((a, b) => b.score - a.score);
 
         const renderList = (list) => {
-            if (!list || list.length === 0) return '<div style="color: #666; font-style: italic;">Tidak Ada Agen</div>';
+            if (!list || list.length === 0) return '<div style="color: #666; font-style: italic;">Tidak Ada Pemain</div>';
 
             return list.map((p, i) => {
                 const isMVP = p.id === mvpId;
